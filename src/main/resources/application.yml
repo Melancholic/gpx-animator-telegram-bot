@@ -1,0 +1,54 @@
+#Web-server params
+server:
+  port: ${PORT:8080}
+
+#Telegram params
+telegram:
+  chat-id: ${TG_CHANNEL_ID}
+  bot:
+    token: ${TG_BOT_TOKEN}
+    name: ${TG_BOT_NAME}
+  sending:
+    ignore-error: false
+    retry:
+      max-attempts: 3
+      delay: 10000
+  files:
+    audio-max-size: 47MB
+
+system:
+  #Main params
+  work-dir: ${WORK_DIR}
+
+#GPX Animator params
+gpx-animator-app:
+  path: gpx-animator-app.jar
+  outputFormat: MP4
+  outWidth: 1024
+  outHeight: 1024
+  background-map-visibility: 0.75
+  fps: 30
+
+##FFmpeg params
+#media:
+#  work-dir: ${FFMPEG_WORK_DIR}
+#  ffmpeg:
+#    path: ${FFMPEG_PATH}
+#  ffprobe:
+#    path: ${FFPROBE_PATH}
+
+#Concurency params
+parallel:
+  core-size: ${PARALLEL_CORE}
+  max-size: ${PARALLEL_MAX}
+
+#Logging params
+logging:
+  level:
+    root: INFO
+  file:
+    name: ${WORK_DIR}/logs/gpx-animator-telegram-bot.log
+  logback:
+    rollingpolicy:
+      max-history: 5
+      max-file-size: 10MB
