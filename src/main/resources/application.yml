@@ -29,13 +29,13 @@ gpx-animator-app:
   background-map-visibility: 0.75
   fps: 30
 
-##FFmpeg params
-#media:
-#  work-dir: ${FFMPEG_WORK_DIR}
-#  ffmpeg:
-#    path: ${FFMPEG_PATH}
-#  ffprobe:
-#    path: ${FFPROBE_PATH}
+#FFmpeg params
+media:
+  work-dir: ${FFMPEG_WORK_DIR}
+  ffmpeg:
+    path: ${FFMPEG_PATH}
+  ffprobe:
+    path: ${FFPROBE_PATH}
 
 #Concurency params
 parallel:
