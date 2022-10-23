@@ -1,0 +1,17 @@
+version: "2"
+services:
+  gpx-animator-telegram-bot:
+    restart: always
+    container_name: gpx-animator-telegram-bot_snapshot
+    build:
+      context: ./
+      args:
+        GPX_ANIMATOR_VER: 1.7.0
+        JAR_FILE: ./*gpx-animator-telegram-bot-*.jar
+        ENTRY_POINT: ./entry_point.sh
+    volumes:
+      - /tmp/:/tmp/
+      - /var/gpx-animator-telegram-bot/:/var/gpx-animator-telegram-bot/
+    env_file:
+      - ./COMMON_ENV.env
+      - ./credentials/ENV_INIT.env
