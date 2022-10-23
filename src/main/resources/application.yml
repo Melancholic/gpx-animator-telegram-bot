@@ -18,6 +18,7 @@ telegram:
 
 system:
   #Main params
+  input-file-max-size: 10MB
   work-dir: ${WORK_DIR}
 
 #GPX Animator params

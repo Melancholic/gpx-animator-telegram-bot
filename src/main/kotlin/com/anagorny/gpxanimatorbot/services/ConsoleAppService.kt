@@ -15,7 +15,7 @@ class ConsoleAppService(
     override fun run(vararg args: String?) {
         logger.info("Console app started with args: ${args.contentToString()}")
         gpxAnimatorRunner.runTest()
-        logger.info("Application was run")
+        logger.info("Application was running")
     }
 
 }
