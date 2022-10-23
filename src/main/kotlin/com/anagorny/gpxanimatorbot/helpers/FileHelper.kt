@@ -1,8 +1,17 @@
 package com.anagorny.gpxanimatorbot.helpers
 
 import org.slf4j.Logger
+import org.telegram.telegrambots.meta.api.objects.InputFile
 import java.io.File
 
+fun loadFile(file: File, originalName: String? = null, logger: Logger): InputFile {
+    return try {
+        InputFile(file, originalName)
+    } catch (e: Exception) {
+        logger.error("Cant read file '${file.absolutePath}' fo sending", e)
+        throw e
+    }
+}
 
 fun removeFile(file: File, logger: Logger) {
     try {
