@@ -21,3 +21,6 @@
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
+/deploy/production/ENV_INIT_PROD.env
+/deploy/snapshot/ENV_INIT.env
+.idea
