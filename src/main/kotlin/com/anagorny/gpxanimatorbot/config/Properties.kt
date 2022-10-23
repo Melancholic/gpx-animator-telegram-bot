@@ -35,7 +35,8 @@ data class TelegramProperties(
 @ConstructorBinding
 @ConfigurationProperties(prefix = "system")
 data class SystemProperties(
-    val workDir: String
+    val workDir: String,
+    val inputFileMaxSize: DataSize
 )
 
 @ConstructorBinding
