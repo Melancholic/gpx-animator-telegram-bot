@@ -11,6 +11,7 @@ import mu.KLogging
 import org.springframework.stereotype.Service
 import java.io.File
 import java.time.Duration
+import java.util.stream.Collectors
 import java.util.stream.DoubleStream
 import java.util.stream.Stream
 import kotlin.math.min
@@ -58,7 +59,7 @@ class GPXAnalyzeServiceImpl(
     override fun totalDistance(gpx: GPX): Length? = getAllPointsAsStream(gpx)
         .collect(Geoid.WGS84.toPathLength())
 
-    override fun getAllPoints(gpx: GPX): List<WayPoint> = getAllPointsAsStream(gpx).toList()
+    override fun getAllPoints(gpx: GPX): List<WayPoint> = getAllPointsAsStream(gpx).collect(Collectors.toList())
 
     override fun getAllPointsAsStream(gpx: GPX): Stream<WayPoint> = gpx.tracks()
         .flatMap(Track::segments)
