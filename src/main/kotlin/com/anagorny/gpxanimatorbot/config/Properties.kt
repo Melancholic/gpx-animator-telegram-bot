@@ -23,7 +23,7 @@ data class TelegramProperties(
 
     data class SendingProperties(
         val ignoreError: Boolean,
-        val retry: RetryConfiguration
+        val retry: RetryProperties
     )
 
     data class FilesProperties(
@@ -36,7 +36,8 @@ data class TelegramProperties(
 @ConfigurationProperties(prefix = "system")
 data class SystemProperties(
     val workDir: String,
-    val inputFileMaxSize: DataSize
+    val inputFileMaxSize: DataSize,
+    val rateLimiting: RateLimiterProperties = RateLimiterProperties()
 )
 
 @ConstructorBinding
@@ -70,7 +71,14 @@ data class ConcurrencyProperties(
     val maxSize: Int
 )
 
-data class RetryConfiguration(
+data class RetryProperties(
     val maxAttempts: Int,
     val delay: Duration
 )
+
+data class RateLimiterProperties(
+    val enabled: Boolean = true,
+    val limits: Set<LimitProperties> = emptySet()
+) {
+    data class LimitProperties(val requests: Long, val duration: Duration)
+}

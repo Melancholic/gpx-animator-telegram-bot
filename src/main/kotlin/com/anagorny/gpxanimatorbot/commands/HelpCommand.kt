@@ -1,6 +1,6 @@
 package com.anagorny.gpxanimatorbot.commands
 
-import org.slf4j.LoggerFactory
+import mu.KLogging
 import org.springframework.context.ApplicationContext
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.extensions.bots.commandbot.commands.BotCommand
@@ -14,7 +14,6 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException
 @Component
 class HelpCommand(private val context: ApplicationContext) :
     BotCommand("help", "Get all the commands this bot provides") {
-    private val logger = LoggerFactory.getLogger(HelpCommand::class.java)
 
     override fun execute(absSender: AbsSender, user: User, chat: Chat, arguments: Array<String>) {
         val helpMessageBuilder = StringBuilder("Just send a *.gpx file and get a video of the route in the answer.")
@@ -34,4 +33,6 @@ class HelpCommand(private val context: ApplicationContext) :
     }
 
     private fun commandRegistry(): ICommandRegistry = context.getBean(ICommandRegistry::class.java)
+
+    companion object : KLogging()
 }

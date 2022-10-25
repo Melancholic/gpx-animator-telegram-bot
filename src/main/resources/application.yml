@@ -20,6 +20,17 @@ system:
   #Main params
   input-file-max-size: 10MB
   work-dir: ${WORK_DIR}
+  rate-limiting:
+    enabled: true
+    limits:
+      - requests: 1
+        duration: 1m
+      - requests: 25
+        duration: 1d
+
+external:
+  geocoder:
+    url: https://photon.komoot.io
 
 #GPX Animator params
 gpx-animator-app:
