@@ -1,6 +1,6 @@
 package com.anagorny.gpxanimatorbot.commands
 
-import org.slf4j.LoggerFactory
+import mu.KLogging
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.extensions.bots.commandbot.commands.BotCommand
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
@@ -11,7 +11,6 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException
 
 @Component
 class StopCommand : BotCommand("stop", "Stop using this bot") {
-    private val logger = LoggerFactory.getLogger(StopCommand::class.java)
 
     override fun execute(absSender: AbsSender, user: User, chat: Chat, arguments: Array<out String>) {
         val answer = SendMessage()
@@ -23,4 +22,6 @@ class StopCommand : BotCommand("stop", "Stop using this bot") {
             logger.error("Error while processing command from user='{}': ", user.userName, e)
         }
     }
+
+    companion object : KLogging()
 }

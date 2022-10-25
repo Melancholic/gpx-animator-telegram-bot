@@ -4,7 +4,7 @@ import com.anagorny.gpxanimatorbot.config.GpxAnimatorAppProperties
 import com.anagorny.gpxanimatorbot.config.TelegramProperties
 import com.anagorny.gpxanimatorbot.services.GpxAnimatorRunner
 import com.anagorny.gpxanimatorbot.utils.StreamGobbler
-import org.slf4j.LoggerFactory
+import mu.KLogging
 import org.springframework.core.task.AsyncListenableTaskExecutor
 import org.springframework.stereotype.Service
 import java.io.File
@@ -19,7 +19,6 @@ class GpxAnimatorRunnerImpl(
     private val telegramProperties: TelegramProperties,
     private val threadPoolTaskExecutor: AsyncListenableTaskExecutor
 ) : GpxAnimatorRunner {
-    private val logger = LoggerFactory.getLogger(GpxAnimatorRunnerImpl::class.java)
     private val tag = "GRP-ANIMATOR-APP"
     private val locker = ReentrantLock()
 
@@ -29,27 +28,16 @@ class GpxAnimatorRunnerImpl(
         try {
             val process = ProcessBuilder()
                 .command(
-                    "java",
-                    "-jar",
-                    gpxAnimatorAppProperties.path,
-                    "--input",
-                    inFilePath,
-                    "--output",
-                    outFilePath,
-                    "--tms-url-template",
-                    "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={zoom}",
-                    "--height",
-                    "${gpxAnimatorAppProperties.outHeight}",
-                    "--width",
-                    "${gpxAnimatorAppProperties.outWidth}",
-                    "--attribution",
-                    "Created by GPX Animator,\n via @${telegramProperties.bot.name}",
-                    "--background-map-visibility",
-                    "${gpxAnimatorAppProperties.backgroundMapVisibility}",
-                    "--fps",
-                    "${gpxAnimatorAppProperties.fps}",
-                    "--track-icon",
-                    "bicycle"
+                    "java", "-jar", gpxAnimatorAppProperties.path,
+                    "--input", inFilePath,
+                    "--output", outFilePath,
+                    "--tms-url-template", "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={zoom}",
+                    "--height", "${gpxAnimatorAppProperties.outHeight}",
+                    "--width", "${gpxAnimatorAppProperties.outWidth}",
+                    "--attribution", "Created by GPX Animator,\n via @${telegramProperties.bot.name}",
+                    "--background-map-visibility", "${gpxAnimatorAppProperties.backgroundMapVisibility}",
+                    "--fps", "${gpxAnimatorAppProperties.fps}",
+                    "--track-icon", "bicycle"
 //                    "--information-position", "'bottom left'"
                 )
                 .start()
@@ -94,4 +82,6 @@ class GpxAnimatorRunnerImpl(
             locker.unlock()
         }
     }
+
+    companion object : KLogging()
 }
