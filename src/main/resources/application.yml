@@ -39,7 +39,7 @@ gpx-animator-app:
   outWidth: 1024
   outHeight: 1024
   background-map-visibility: 0.75
-  fps: 30
+  fps: 60
 
 #FFmpeg params
 media:
