@@ -17,6 +17,7 @@ import mu.KLogging
 import org.apache.commons.io.FilenameUtils
 import org.apache.commons.lang3.time.DurationFormatUtils.formatDurationHMS
 import org.springframework.stereotype.Component
+import org.telegram.telegrambots.meta.api.methods.ActionType
 import org.telegram.telegrambots.meta.api.methods.GetFile
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo
@@ -50,16 +51,21 @@ class FileMessageHandler(
         var result: File? = null
 
         try {
+            botService.sentAction(message.chatId, ActionType.TYPING)
+
+            //ToDo async
             file = botService.downloadFile(botService.execute(GetFile(document.fileId)))
-            //ToDo async
             val gpxAnalyzeResult = gpxAnalyzeService.doAnalyze(file)
+
             //ToDo async
+            botService.sentAction(message.chatId, ActionType.RECORDVIDEO)
             result = gpxAnimatorRunner.run(
                 file.absolutePath, withContext(Dispatchers.IO) {
                     Files.createTempFile(null, ".${gpxAnimatorAppProperties.outputFormat.ext}")
                 }.absolutePathString()
             )
 
+            botService.sentAction(message.chatId, ActionType.UPLOADVIDEO)
             botService.execute(buildResponse(message, document, gpxAnalyzeResult, result))
         } catch (e: Exception) {
             logger.error(e) { "Unhandled exception" }
@@ -119,14 +125,26 @@ class FileMessageHandler(
     private suspend fun makeCaption(document: Document, gpxAnalyzeResult: GPXAnalyzeResult): String = buildString {
         append("<b>${FilenameUtils.getBaseName(document.fileName)}</b>")
         append("\n\n")
-        gpxAnalyzeResult.from?.let { append("<b>From:</b> <i>$it</i> \n") }
-        gpxAnalyzeResult.to?.let { append("<b>To:</b> <i>$it</i> \n") }
-        gpxAnalyzeResult.duration?.let { append("<b>Duration:</b> <i>${formatDurationHMS(it.toMillis())}</i> \n") }
-        gpxAnalyzeResult.distance?.let { append("<b>Distance:</b> <i>${it.format(3)} km.</i> \n") }
-        gpxAnalyzeResult.avgSpeed?.let { append("<b>Avg speed:</b> <i>${it.format(2)} km/h.</i> \n") }
-        gpxAnalyzeResult.maxSpeed?.let { append("<b>Max speed:</b> <i>${it.format(2)} km/h.</i> \n") }
-        gpxAnalyzeResult.uphill?.let { append("<b>Uphill:</b> <i>${it.format(2)}</i> \n") }
-        gpxAnalyzeResult.downhill?.let { append("<b>Downhill:</b> <i>${it.format(2)}</i>") }
+        gpxAnalyzeResult.from?.let { append("<b>\uD83C\uDFE1 From:</b> <i>$it</i> \n") }
+        gpxAnalyzeResult.to?.let { append("<b>⛰️ To:</b> <i>$it</i> \n") }
+        gpxAnalyzeResult.duration?.let { append("<b>⏰ Duration:</b> <i>${formatDurationHMS(it.toMillis())}</i>\n") }
+        gpxAnalyzeResult.distance?.let { append("<b>\uD83D\uDCCF Distance:</b> <i>${it.format(3)} km.</i>\n") }
+        gpxAnalyzeResult.avgSpeed?.let { append("<b>\uD83D\uDE80 Avg speed:</b> <i>${it.format(2)} km/h.</i>\n") }
+        gpxAnalyzeResult.maxSpeed?.let { append("<b>\uD83D\uDE80 Max speed:</b> <i>${it.format(2)} km/h.</i>\n") }
+        append("\n")
+        gpxAnalyzeResult.ascent.elevation.let { append("<b>↗️ Uphill:</b> <i>${it.format(2)} m.</i>\n") }
+        gpxAnalyzeResult.ascent.totalDistance.let { append("<b>↗️ Total (distance):</b> <i>${it.format(2)} m.</i>\n") }
+        gpxAnalyzeResult.ascent.maxDistance?.let { append("<b>↗️ Longest part (distance):</b> <i>${it.format(2)} m.</i>\n") }
+        gpxAnalyzeResult.ascent.totalDuration.let { append("<b>↗️ Total (duration):</b> <i>${formatDurationHMS(it.toMillis())}</i>\n") }
+        gpxAnalyzeResult.ascent.maxDuration?.let { append("<b>↗️ Longest part (duration):</b> <i>${formatDurationHMS(it.toMillis())}</i>\n") }
+        gpxAnalyzeResult.ascent.maxAngle?.let { append("<b>↗️ Max angle:</b> <i>${it.format(2)} m.</i>\n") }
+        append("\n")
+        gpxAnalyzeResult.descent.elevation.let { append("<b>↘️ Downhill:</b> <i>${it.format(2)} m.</i>\n") }
+        gpxAnalyzeResult.descent.totalDistance.let { append("<b>↘️ Total (distance):</b> <i>${it.format(2)} m.</i>\n") }
+        gpxAnalyzeResult.descent.maxDistance?.let { append("<b>↘️ Longest part (distance):</b> <i>${it.format(2)} m.</i>\n") }
+        gpxAnalyzeResult.descent.totalDuration.let { append("<b>↘️ Total (duration):</b> <i>${formatDurationHMS(it.toMillis())}</i>\n") }
+        gpxAnalyzeResult.descent.maxDuration?.let { append("<b>↘️ Longest part (duration):</b> <i>${formatDurationHMS(it.toMillis())}</i>\n") }
+        gpxAnalyzeResult.descent.maxAngle?.let { append("<b>↘️ Max angle:</b> <i>${it.format(2)} m.</i>\n") }
     }
 
     private suspend fun makeOutFilename(

@@ -1,5 +1,6 @@
 package com.anagorny.gpxanimatorbot.services.impl
 
+import com.anagorny.gpxanimatorbot.model.ElevationResult
 import com.anagorny.gpxanimatorbot.model.GPXAnalyzeResult
 import com.anagorny.gpxanimatorbot.services.GPXAnalyzeService
 import com.anagorny.gpxanimatorbot.services.GeocoderClient
@@ -14,6 +15,7 @@ import java.time.Duration
 import java.util.stream.Collectors
 import java.util.stream.DoubleStream
 import java.util.stream.Stream
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.streams.asSequence
@@ -34,8 +36,10 @@ class GPXAnalyzeServiceImpl(
             distance = totalDistance(gpx)?.to(Length.Unit.KILOMETER)
             maxSpeed = maxSpeed(gpx)
             avgSpeed = avgSpeed(gpx)
-            uphill = totalAscending(gpx)
-            downhill = totalDescending(gpx)
+            calculateElevation(gpx).let {
+                ascent = it.first
+                descent = it.second
+            }
         }
         logger.info { "Finishing analyze of GPX file ${file.absolutePath}" }
         return result
@@ -71,18 +75,8 @@ class GPXAnalyzeServiceImpl(
     }
 
 
-    private fun avgSpeed(gpx: GPX): Double {
-        val speedsFromGpx = extractedSpeedsForPoints(gpx)
-        val averageSpeed = if (speedsFromGpx.isEmpty()) {
-            calculatedSpeedsForPoints(gpx).average()
-        } else {
-            speedsFromGpx.stream()
-                .mapToDouble { it }
-                .average()
-        }
-
-        return averageSpeed.orElse(0.0)
-    }
+    private fun avgSpeed(gpx: GPX): Double =
+        ((totalDistance(gpx)?.toDouble() ?: 0.0) / totalTime(gpx).toSeconds()) * 3.6
 
     private fun maxSpeed(gpx: GPX): Double {
         val speedsFromGpx = extractedSpeedsForPoints(gpx)
@@ -121,6 +115,65 @@ class GPXAnalyzeServiceImpl(
             )
         }
         return speeds.build()
+    }
+
+
+    private fun calculateElevation(gpx: GPX): Pair<ElevationResult, ElevationResult> {
+        val points = getAllPoints(gpx)
+        var pathStartPoint = 0
+        val ascending = ElevationResult()
+        val descending = ElevationResult()
+
+
+        var isAscending = true
+
+        for (i in 0 until points.lastIndex) {
+            val j = i + 1
+            val a = points[i]
+            val b = points[j]
+            val eleA = a.elevation.map { it.toDouble() }.orElse(0.0)
+            val eleB: Double = b.elevation.map { it.toDouble() }.orElse(0.0)
+
+            if (eleA > eleB) {
+                descending.elevation += eleA - eleB
+                if (isAscending) {
+                    val pathDuration = Duration.between(points[pathStartPoint].time.get(), points[i].time.get())
+                    ascending.totalDuration = ascending.totalDuration.plus(pathDuration)
+                    ascending.maxDuration = max(pathDuration, ascending.maxDuration)
+
+                    var pathLength = 0.0
+                    for (k in pathStartPoint..i) {
+                        pathLength += Geoid.WGS84.distance(points[k], points[k + 1]).to(Length.Unit.METER)
+                    }
+                    ascending.totalDistance += pathLength
+                    ascending.maxDistance = max(pathLength, ascending.maxDistance ?: 0.0)
+                    pathStartPoint = i
+                    isAscending = false
+                }
+            } else {
+                ascending.elevation += eleB - eleA
+                if (!isAscending) {
+                    val pathDuration = Duration.between(points[pathStartPoint].time.get(), points[i].time.get())
+                    descending.totalDuration = descending.totalDuration.plus(pathDuration)
+                    descending.maxDuration = max(pathDuration, descending.maxDuration)
+
+                    var pathLength = 0.0
+                    for (k in pathStartPoint..i) {
+                        pathLength += Geoid.WGS84.distance(points[k], points[k + 1]).to(Length.Unit.METER)
+                    }
+                    descending.totalDistance += pathLength
+                    descending.maxDistance = max(pathLength, descending.maxDistance ?: 0.0)
+                    pathStartPoint = i
+                    isAscending = true
+                }
+            }
+        }
+        return ascending to descending
+    }
+
+    private fun max(a: Duration?, b: Duration?): Duration {
+        return if ((a ?: Duration.ZERO) >= (b ?: Duration.ZERO)) a ?: Duration.ZERO else b ?: Duration.ZERO
+
     }
 
     private fun extractedSpeedsForPoints(gpx: GPX): List<Double> {
