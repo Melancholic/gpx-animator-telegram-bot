@@ -33,16 +33,4 @@ open class SpringConfiguration {
             KotlinModule.Builder()
                 .build()
         )
-
-
-//    @Bean
-//    fun ffmpeg(properties: MediaProperties) = FFmpeg(properties.ffmpeg.path)
-//
-//    @Bean
-//    fun ffprobe(properties: MediaProperties) = FFprobe(properties.ffprobe.path)
-//
-//    @Bean
-//    fun ffmpegTaskExecutor(ffmpeg: FFmpeg, ffprobe: FFprobe) = FFmpegExecutor(ffmpeg, ffprobe)
-
-
 }

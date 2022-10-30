@@ -13,24 +13,6 @@ telegram:
     retry:
       max-attempts: 3
       delay: 10000
-  files:
-    audio-max-size: 47MB
-
-system:
-  #Main params
-  input-file-max-size: 10MB
-  work-dir: ${WORK_DIR}
-  rate-limiting:
-    enabled: true
-    limits:
-      - requests: 1
-        duration: 1m
-      - requests: 25
-        duration: 1d
-
-external:
-  geocoder:
-    url: https://photon.komoot.io
 
 #GPX Animator params
 gpx-animator-app:
@@ -41,13 +23,36 @@ gpx-animator-app:
   background-map-visibility: 0.75
   fps: 60
 
-#FFmpeg params
-media:
-  work-dir: ${FFMPEG_WORK_DIR}
-  ffmpeg:
-    path: ${FFMPEG_PATH}
-  ffprobe:
-    path: ${FFPROBE_PATH}
+system:
+  #Main params
+  input-file-max-size: 5MB
+  work-dir: ${WORK_DIR}
+  rate-limiting:
+    enabled: true
+    limits:
+      - requests: 1
+        period: 1m
+      - requests: 25
+        period: 1d
+
+retryer:
+  maxAttempts: 3
+  period: 100ms
+  maxPeriod: 1s
+
+external:
+  geocoder:
+    url: https://photon.komoot.io/
+
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 100
+        readTimeout: 500
+        loggerLevel: basic
+        decode404: false
+        retryer: com.anagorny.gpxanimatorbot.services.impl.RetryerImpl
 
 #Concurency params
 parallel:
@@ -58,6 +63,7 @@ parallel:
 logging:
   level:
     root: INFO
+    com.anagorny.gpxanimatorbot.clients: DEBUG
   file:
     name: ${WORK_DIR}/logs/gpx-animator-telegram-bot.log
   logback:

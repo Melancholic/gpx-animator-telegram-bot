@@ -1,9 +1,11 @@
 package com.anagorny.gpxanimatorbot.services.impl
 
+import com.anagorny.gpxanimatorbot.clients.GeocoderClient
+import com.anagorny.gpxanimatorbot.helpers.GeoHelper
+import com.anagorny.gpxanimatorbot.helpers.middle
 import com.anagorny.gpxanimatorbot.model.ElevationResult
 import com.anagorny.gpxanimatorbot.model.GPXAnalyzeResult
 import com.anagorny.gpxanimatorbot.services.GPXAnalyzeService
-import com.anagorny.gpxanimatorbot.services.GeocoderClient
 import io.jenetics.jpx.*
 import io.jenetics.jpx.format.Location
 import io.jenetics.jpx.format.LocationFormatter
@@ -13,16 +15,14 @@ import org.springframework.stereotype.Service
 import java.io.File
 import java.time.Duration
 import java.util.stream.Collectors
-import java.util.stream.DoubleStream
 import java.util.stream.Stream
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.roundToInt
+import kotlin.math.*
 import kotlin.streams.asSequence
 
 @Service
 class GPXAnalyzeServiceImpl(
-    private val geocoderClient: GeocoderClient
+    private val geocoderClient: GeocoderClient,
+    private val geoHelper: GeoHelper
 ) : GPXAnalyzeService {
 
     override fun doAnalyze(file: File): GPXAnalyzeResult {
@@ -31,6 +31,7 @@ class GPXAnalyzeServiceImpl(
 
         val result = GPXAnalyzeResult().apply {
             from = getCity(startPoint(gpx))
+            through = getCity(throughPoint(gpx))
             to = getCity(finishPoint(gpx))
             duration = totalTime(gpx)
             distance = totalDistance(gpx)?.to(Length.Unit.KILOMETER)
@@ -47,18 +48,18 @@ class GPXAnalyzeServiceImpl(
 
 
     override fun readGPX(file: File): GPX {
-        val res = GPX.read(file.toPath())
+        val res = GPX.Reader.of(GPX.Reader.Mode.LENIENT).read(file.toPath())
         logger.info { "GPX file ${file.absolutePath} was read and ready for analyze" }
         return res
     }
 
-    override fun startPoint(gpx: GPX): WayPoint? = getAllPointsAsStream(gpx)
-        .asSequence()
-        .last()
+    override fun startPoint(gpx: GPX): WayPoint? = gpx.tracks.first()
+        .segments.first()
+        .points().asSequence().first()
 
-    override fun finishPoint(gpx: GPX): WayPoint? = getAllPointsAsStream(gpx)
-        .asSequence()
-        .last()
+    override fun finishPoint(gpx: GPX): WayPoint? = gpx.tracks.last()
+        .segments.last()
+        .points().asSequence().last()
 
     override fun totalDistance(gpx: GPX): Length? = getAllPointsAsStream(gpx)
         .collect(Geoid.WGS84.toPathLength())
@@ -75,56 +76,27 @@ class GPXAnalyzeServiceImpl(
     }
 
 
-    private fun avgSpeed(gpx: GPX): Double =
-        ((totalDistance(gpx)?.toDouble() ?: 0.0) / totalTime(gpx).toSeconds()) * 3.6
+    private fun avgSpeed(gpx: GPX): Double? {
+        val average = gpx.tracks.asSequence()
+            .mapNotNull(geoHelper::avgSpeedOfTrack)
+            .average()
 
-    private fun maxSpeed(gpx: GPX): Double {
-        val speedsFromGpx = extractedSpeedsForPoints(gpx)
-        val maxSpeed = if (speedsFromGpx.isEmpty()) {
-            calculatedSpeedsForPoints(gpx).max()
-        } else {
-            speedsFromGpx.stream()
-                .mapToDouble { it }
-                .max()
-        }
-
-        return maxSpeed.orElse(0.0)
+        return if (average.isNaN()) null else average
     }
 
-    private fun calculatedSpeedsForPoints(gpx: GPX): DoubleStream {
-        val speeds = DoubleStream.builder()
-        val points = getAllPoints(gpx)
-        val totalTime = totalTime(gpx)
-        val step: Int = min(10.0, totalTime.toSeconds() / points.size * 1.0).roundToInt()
+    private fun maxSpeed(gpx: GPX): Double? {
+        val max = gpx.tracks.asSequence()
+            .mapNotNull(geoHelper::maxSpeedOfTrack)
+            .average()
 
-        for (i in points.indices step step) {
-            val j = min(i + step, points.size - 1)
-            val a = points[i]
-            val b = points[j]
-
-            var distance = 0.0
-            for (k in i until j) {
-                distance += Geoid.WGS84.distance(points[k], points[k + 1]).to(Length.Unit.METER)
-            }
-
-            speeds.add(
-                distance / ((Duration.between(
-                    a.time.get(),
-                    b.time.get()
-                )).abs().toMillis() / 1000.0) * 3.6
-            )
-        }
-        return speeds.build()
+        return if (max.isNaN()) null else max
     }
-
 
     private fun calculateElevation(gpx: GPX): Pair<ElevationResult, ElevationResult> {
         val points = getAllPoints(gpx)
         var pathStartPoint = 0
         val ascending = ElevationResult()
         val descending = ElevationResult()
-
-
         var isAscending = true
 
         for (i in 0 until points.lastIndex) {
@@ -132,37 +104,59 @@ class GPXAnalyzeServiceImpl(
             val a = points[i]
             val b = points[j]
             val eleA = a.elevation.map { it.toDouble() }.orElse(0.0)
-            val eleB: Double = b.elevation.map { it.toDouble() }.orElse(0.0)
+            val eleB = b.elevation.map { it.toDouble() }.orElse(0.0)
+
+            ascending.extremum = max(max(eleA, eleB), ascending.extremum ?: 0.0)
+            descending.extremum = min(min(eleA, eleB), descending.extremum ?: Double.MAX_VALUE)
 
             if (eleA > eleB) {
-                descending.elevation += eleA - eleB
+                descending.elevation = (descending.elevation ?: 0.0).plus(eleA - eleB)
                 if (isAscending) {
-                    val pathDuration = Duration.between(points[pathStartPoint].time.get(), points[i].time.get())
-                    ascending.totalDuration = ascending.totalDuration.plus(pathDuration)
-                    ascending.maxDuration = max(pathDuration, ascending.maxDuration)
 
                     var pathLength = 0.0
-                    for (k in pathStartPoint..i) {
+                    for (k in pathStartPoint until i) {
                         pathLength += Geoid.WGS84.distance(points[k], points[k + 1]).to(Length.Unit.METER)
                     }
-                    ascending.totalDistance += pathLength
+                    ascending.totalDistance = ascending.totalDistance?.plus(pathLength)
                     ascending.maxDistance = max(pathLength, ascending.maxDistance ?: 0.0)
+
+                    val pathDuration = Duration.between(points[pathStartPoint].time.get(), points[i].time.get())
+                    ascending.totalDuration = ascending.totalDuration?.plus(pathDuration)
+                    ascending.maxDuration = max(pathDuration, ascending.maxDuration)
+// ToDo
+//                    val partSpeed = pathLength / pathDuration.toSeconds()
+//                    ascending.maxPartSpeed = max(partSpeed, ascending.maxPartSpeed ?: 0.0)
+//                    ascending.minPartSpeed = min(partSpeed, ascending.minPartSpeed ?: Double.MAX_VALUE)
+
+//                    val elevationAngle = calculateElevationAngle(points[pathStartPoint], a)
+//                    ascending.maximumAngle = max(elevationAngle, ascending.maximumAngle?:0.0)
+
                     pathStartPoint = i
                     isAscending = false
                 }
             } else {
-                ascending.elevation += eleB - eleA
+                ascending.elevation = (ascending.elevation ?: 0.0).plus(eleB - eleA)
                 if (!isAscending) {
-                    val pathDuration = Duration.between(points[pathStartPoint].time.get(), points[i].time.get())
-                    descending.totalDuration = descending.totalDuration.plus(pathDuration)
-                    descending.maxDuration = max(pathDuration, descending.maxDuration)
 
                     var pathLength = 0.0
-                    for (k in pathStartPoint..i) {
+                    for (k in pathStartPoint until i) {
                         pathLength += Geoid.WGS84.distance(points[k], points[k + 1]).to(Length.Unit.METER)
                     }
-                    descending.totalDistance += pathLength
+                    descending.totalDistance = descending.totalDistance?.plus(pathLength)
                     descending.maxDistance = max(pathLength, descending.maxDistance ?: 0.0)
+
+                    val pathDuration = Duration.between(points[pathStartPoint].time.get(), points[i].time.get())
+                    descending.totalDuration = descending.totalDuration?.plus(pathDuration)
+                    descending.maxDuration = max(pathDuration, descending.maxDuration)
+
+// ToDo
+//                    val partSpeed = pathLength / pathDuration.toSeconds()
+//                    descending.maxPartSpeed = max(partSpeed, descending.maxPartSpeed ?: 0.0)
+//                    descending.minPartSpeed = min(partSpeed, descending.minPartSpeed ?: Double.MAX_VALUE)
+
+//                    val elevationAngle = calculateElevationAngle(points[pathStartPoint], a)
+//                    descending.maximumAngle = max(elevationAngle, descending.maximumAngle?:0.0)
+
                     pathStartPoint = i
                     isAscending = true
                 }
@@ -171,22 +165,26 @@ class GPXAnalyzeServiceImpl(
         return ascending to descending
     }
 
+    // ToDo
+    private fun calculateElevationAngle(a: Point, b: Point): Double {
+        val dy: Double = b.latitude.toRadians() - a.latitude.toRadians()
+        val dx: Double = cos(PI / 180 * a.latitude.toRadians()) * (b.longitude.toRadians() - a.longitude.toRadians())
+        return Math.toDegrees(atan2(dy, dx))
+    }
+
     private fun max(a: Duration?, b: Duration?): Duration {
         return if ((a ?: Duration.ZERO) >= (b ?: Duration.ZERO)) a ?: Duration.ZERO else b ?: Duration.ZERO
 
     }
 
-    private fun extractedSpeedsForPoints(gpx: GPX): List<Double> {
-        val points = getAllPoints(gpx)
-
-        return points.asSequence()
-            .mapNotNull { it.speed.orElse(null) }
-            .map { it.to(Speed.Unit.KILOMETERS_PER_HOUR) }//ToDo parametrize i
-            .toList()
-    }
-
     override fun totalAscending(gpx: GPX): Double? = null
     override fun totalDescending(gpx: GPX): Double? = null
+    private fun throughPoint(gpx: GPX): WayPoint? {
+        return gpx.tracks()
+            .flatMap { it.segments() }
+            .flatMap { it.points() }
+            .middle().orElse(null)
+    }
 
     private fun getCity(wayPoint: WayPoint?): String? {
         val geoJson = geocoderClient.reverse(wayPoint!!.longitude.toDegrees(), wayPoint.latitude.toDegrees())

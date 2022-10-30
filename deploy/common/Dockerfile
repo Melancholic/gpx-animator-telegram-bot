@@ -6,7 +6,7 @@ ARG GPX_ANIMATOR_VER
 EXPOSE 3000/tcp
 
 RUN apk upgrade -U \
-    && apk add ca-certificates ffmpeg libva-intel-driver \
+    && apk add ca-certificates libva-intel-driver \
     && apk add --no-cache tzdata \
     && apk add wget \
     && rm -rf /var/cache/

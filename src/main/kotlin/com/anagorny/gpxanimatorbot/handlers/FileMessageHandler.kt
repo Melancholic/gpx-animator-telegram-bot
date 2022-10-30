@@ -2,8 +2,8 @@ package com.anagorny.gpxanimatorbot.handlers
 
 import com.anagorny.gpxanimatorbot.config.GpxAnimatorAppProperties
 import com.anagorny.gpxanimatorbot.config.SystemProperties
-import com.anagorny.gpxanimatorbot.helpers.format
 import com.anagorny.gpxanimatorbot.helpers.loadFile
+import com.anagorny.gpxanimatorbot.helpers.makeCaption
 import com.anagorny.gpxanimatorbot.helpers.removeFileIfExist
 import com.anagorny.gpxanimatorbot.model.GPXAnalyzeResult
 import com.anagorny.gpxanimatorbot.model.OutputFormats
@@ -15,7 +15,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import mu.KLogging
 import org.apache.commons.io.FilenameUtils
-import org.apache.commons.lang3.time.DurationFormatUtils.formatDurationHMS
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.meta.api.methods.ActionType
 import org.telegram.telegrambots.meta.api.methods.GetFile
@@ -44,8 +43,7 @@ class FileMessageHandler(
         val message = update.message
         val document = message.document
 
-        if (!validateInputFile(message)) return
-        if (!rlChecking(message)) return
+        if (!rlChecking(message) || !validateInputFile(message)) return
 
         var file: File? = null
         var result: File? = null
@@ -55,7 +53,12 @@ class FileMessageHandler(
 
             //ToDo async
             file = botService.downloadFile(botService.execute(GetFile(document.fileId)))
-            val gpxAnalyzeResult = gpxAnalyzeService.doAnalyze(file)
+            var gpxAnalyzeResult: GPXAnalyzeResult? = null
+            try {
+                gpxAnalyzeResult = gpxAnalyzeService.doAnalyze(file)
+            } catch (e: java.lang.Exception) {
+                logger.error("Error while analyzing .GPX file", e)
+            }
 
             //ToDo async
             botService.sentAction(message.chatId, ActionType.RECORDVIDEO)
@@ -109,7 +112,7 @@ class FileMessageHandler(
     private suspend fun buildResponse(
         message: Message,
         document: Document,
-        gpxAnalyzeResult: GPXAnalyzeResult,
+        gpxAnalyzeResult: GPXAnalyzeResult?,
         result: File
     ): SendVideo =
         SendVideo().apply {
@@ -118,34 +121,10 @@ class FileMessageHandler(
             video = loadFile(result, makeOutFilename(document.fileName, gpxAnimatorAppProperties.outputFormat), logger)
             width = gpxAnimatorAppProperties.outWidth
             height = gpxAnimatorAppProperties.outHeight
-            caption = makeCaption(document, gpxAnalyzeResult)
+            caption = makeCaption(gpxAnalyzeResult, FilenameUtils.getBaseName(document.fileName))
             parseMode = "HTML"
         }
 
-    private suspend fun makeCaption(document: Document, gpxAnalyzeResult: GPXAnalyzeResult): String = buildString {
-        append("<b>${FilenameUtils.getBaseName(document.fileName)}</b>")
-        append("\n\n")
-        gpxAnalyzeResult.from?.let { append("<b>\uD83C\uDFE1 From:</b> <i>$it</i> \n") }
-        gpxAnalyzeResult.to?.let { append("<b>⛰️ To:</b> <i>$it</i> \n") }
-        gpxAnalyzeResult.duration?.let { append("<b>⏰ Duration:</b> <i>${formatDurationHMS(it.toMillis())}</i>\n") }
-        gpxAnalyzeResult.distance?.let { append("<b>\uD83D\uDCCF Distance:</b> <i>${it.format(3)} km.</i>\n") }
-        gpxAnalyzeResult.avgSpeed?.let { append("<b>\uD83D\uDE80 Avg speed:</b> <i>${it.format(2)} km/h.</i>\n") }
-        gpxAnalyzeResult.maxSpeed?.let { append("<b>\uD83D\uDE80 Max speed:</b> <i>${it.format(2)} km/h.</i>\n") }
-        append("\n")
-        gpxAnalyzeResult.ascent.elevation.let { append("<b>↗️ Uphill:</b> <i>${it.format(2)} m.</i>\n") }
-        gpxAnalyzeResult.ascent.totalDistance.let { append("<b>↗️ Total (distance):</b> <i>${it.format(2)} m.</i>\n") }
-        gpxAnalyzeResult.ascent.maxDistance?.let { append("<b>↗️ Longest part (distance):</b> <i>${it.format(2)} m.</i>\n") }
-        gpxAnalyzeResult.ascent.totalDuration.let { append("<b>↗️ Total (duration):</b> <i>${formatDurationHMS(it.toMillis())}</i>\n") }
-        gpxAnalyzeResult.ascent.maxDuration?.let { append("<b>↗️ Longest part (duration):</b> <i>${formatDurationHMS(it.toMillis())}</i>\n") }
-        gpxAnalyzeResult.ascent.maxAngle?.let { append("<b>↗️ Max angle:</b> <i>${it.format(2)} m.</i>\n") }
-        append("\n")
-        gpxAnalyzeResult.descent.elevation.let { append("<b>↘️ Downhill:</b> <i>${it.format(2)} m.</i>\n") }
-        gpxAnalyzeResult.descent.totalDistance.let { append("<b>↘️ Total (distance):</b> <i>${it.format(2)} m.</i>\n") }
-        gpxAnalyzeResult.descent.maxDistance?.let { append("<b>↘️ Longest part (distance):</b> <i>${it.format(2)} m.</i>\n") }
-        gpxAnalyzeResult.descent.totalDuration.let { append("<b>↘️ Total (duration):</b> <i>${formatDurationHMS(it.toMillis())}</i>\n") }
-        gpxAnalyzeResult.descent.maxDuration?.let { append("<b>↘️ Longest part (duration):</b> <i>${formatDurationHMS(it.toMillis())}</i>\n") }
-        gpxAnalyzeResult.descent.maxAngle?.let { append("<b>↘️ Max angle:</b> <i>${it.format(2)} m.</i>\n") }
-    }
 
     private suspend fun makeOutFilename(
         sourceFilePath: String,
