@@ -48,7 +48,7 @@ class RateLimiterImpl(
         val rateLimiterProps = systemProperties.rateLimiting
         val builder = Bucket.builder()
         rateLimiterProps.limits.forEach {
-            builder.addLimit(Bandwidth.classic(it.requests, Refill.intervally(it.requests, it.duration)))
+            builder.addLimit(Bandwidth.classic(it.requests, Refill.intervally(it.requests, it.period)))
         }
         return builder.build()
     }

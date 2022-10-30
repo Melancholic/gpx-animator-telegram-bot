@@ -4,6 +4,7 @@ import java.time.Duration
 
 data class GPXAnalyzeResult(
     var from: String? = null,
+    var through: String? = null,
     var to: String? = null,
     var duration: Duration? = null,
     var distance: Double? = null,
@@ -14,10 +15,13 @@ data class GPXAnalyzeResult(
 )
 
 data class ElevationResult(
-    var elevation: Double = 0.0,
-    var totalDistance: Double = 0.0,
+    var elevation: Double? = null,
+    var extremum: Double? = null,
+    var totalDistance: Double? = null,
     var maxDistance: Double? = null,
-    var totalDuration: Duration = Duration.ZERO,
+    var totalDuration: Duration? = null,
     var maxDuration: Duration? = null,
-    var maxAngle: Double? = null
+    var sectionMaxSpeed: Double? = null,
+    var sectionMinSpeed: Double? = null,
+    var maximumAngle: Double? = null
 )

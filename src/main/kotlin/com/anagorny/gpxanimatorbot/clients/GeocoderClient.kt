@@ -1,4 +1,4 @@
-package com.anagorny.gpxanimatorbot.services
+package com.anagorny.gpxanimatorbot.clients
 
 import org.geojson.FeatureCollection
 import org.springframework.cloud.openfeign.FeignClient
