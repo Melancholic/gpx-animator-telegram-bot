@@ -36,7 +36,7 @@ dependencyManagement {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$corutines_version"
-    implementation 'io.github.microutils:kotlin-logging-jvm:3.0.2'
+    implementation 'io.github.microutils:kotlin-logging-jvm:3.0.3'
     implementation "org.springframework.boot:spring-boot-starter-web"
     implementation "org.springframework.boot:spring-boot-configuration-processor"
     implementation "org.springframework:spring-context-support"
