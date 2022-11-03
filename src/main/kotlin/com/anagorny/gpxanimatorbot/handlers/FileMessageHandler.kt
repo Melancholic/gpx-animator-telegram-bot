@@ -2,17 +2,16 @@ package com.anagorny.gpxanimatorbot.handlers
 
 import com.anagorny.gpxanimatorbot.config.GpxAnimatorAppProperties
 import com.anagorny.gpxanimatorbot.config.SystemProperties
-import com.anagorny.gpxanimatorbot.helpers.loadFile
-import com.anagorny.gpxanimatorbot.helpers.makeCaption
-import com.anagorny.gpxanimatorbot.helpers.removeFileIfExist
+import com.anagorny.gpxanimatorbot.helpers.*
 import com.anagorny.gpxanimatorbot.model.GPXAnalyzeResult
 import com.anagorny.gpxanimatorbot.model.OutputFormats
 import com.anagorny.gpxanimatorbot.services.GPXAnalyzeService
 import com.anagorny.gpxanimatorbot.services.GpxAnimatorRunner
 import com.anagorny.gpxanimatorbot.services.MainTelegramBotService
 import com.anagorny.gpxanimatorbot.services.RateLimiter
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import mu.KLogging
 import org.apache.commons.io.FilenameUtils
 import org.springframework.stereotype.Component
@@ -35,7 +34,8 @@ class FileMessageHandler(
     private val systemProperties: SystemProperties,
     private val rateLimiter: RateLimiter,
     private val botService: MainTelegramBotService,
-    private val gpxAnalyzeService: GPXAnalyzeService
+    private val gpxAnalyzeService: GPXAnalyzeService,
+    private val scope: CoroutineScope
 ) : UpdatesHandler {
 
 
@@ -46,35 +46,33 @@ class FileMessageHandler(
         if (!rlChecking(message) || !validateInputFile(message)) return
 
         var file: File? = null
-        var result: File? = null
+        var outFile: File? = null
 
         try {
             botService.sentAction(message.chatId, ActionType.TYPING)
-
-            //ToDo async
             file = botService.downloadFile(botService.execute(GetFile(document.fileId)))
-            var gpxAnalyzeResult: GPXAnalyzeResult? = null
-            try {
-                gpxAnalyzeResult = gpxAnalyzeService.doAnalyze(file)
-            } catch (e: java.lang.Exception) {
-                logger.error("Error while analyzing .GPX file", e)
+
+            val gpxAnalyzeResultDeferred: Deferred<GPXAnalyzeResult> =
+                scope.runAsync { gpxAnalyzeService.doAnalyze(file) }
+
+            val gpxAnimatorRunningResultDeferred: Deferred<File> = scope.runAsync {
+                botService.sentAction(message.chatId, ActionType.RECORDVIDEO)
+                val outFilePath = io {
+                    Files.createTempFile(null, ".${gpxAnimatorAppProperties.outputFormat.ext}").absolutePathString()
+                }
+                gpxAnimatorRunner.run(file.absolutePath, outFilePath)
+
             }
 
-            //ToDo async
-            botService.sentAction(message.chatId, ActionType.RECORDVIDEO)
-            result = gpxAnimatorRunner.run(
-                file.absolutePath, withContext(Dispatchers.IO) {
-                    Files.createTempFile(null, ".${gpxAnimatorAppProperties.outputFormat.ext}")
-                }.absolutePathString()
-            )
-
+            val gpxAnalyzeResult = gpxAnalyzeResultDeferred.await()
+            outFile = gpxAnimatorRunningResultDeferred.await()
             botService.sentAction(message.chatId, ActionType.UPLOADVIDEO)
-            botService.execute(buildResponse(message, document, gpxAnalyzeResult, result))
+            botService.execute(buildResponse(message, document, gpxAnalyzeResult, outFile))
         } catch (e: Exception) {
-            logger.error(e) { "Unhandled exception" }
+            logger.error(e) { "Error while processing message" }
         } finally {
-            removeFileIfExist(file?.absolutePath, MainHandler.logger)
-            removeFileIfExist(result?.absolutePath, MainHandler.logger)
+            scope.launchAsync(Dispatchers.IO) { removeFileIfExist(file?.absolutePath, MainHandler.logger) }
+            scope.launchAsync(Dispatchers.IO) { removeFileIfExist(outFile?.absolutePath, MainHandler.logger) }
         }
     }
 
@@ -84,8 +82,8 @@ class FileMessageHandler(
             if (!rateLimiter.isRequestAllowed(rlKey)) {
                 val mins = max(rateLimiter.howLongForAllow(rlKey).toMinutes(), 1)
                 wrongResponse(
-                    "You have exceeded the limit on requests to the bot. Try again after $mins minutes.",
-                    message
+                    "You have exceeded the limit on requests to the bot." +
+                            " Try again after $mins minutes.", message
                 )
                 return false
             }
@@ -101,7 +99,8 @@ class FileMessageHandler(
         }
         if (document.fileSize > systemProperties.inputFileMaxSize.toBytes()) {
             wrongResponse(
-                "Your file is larger than ${systemProperties.inputFileMaxSize.toMegabytes()}MB. Files larger than ${systemProperties.inputFileMaxSize.toMegabytes()}MB are not supported.",
+                "Your file is larger than ${systemProperties.inputFileMaxSize.toMegabytes()}MB." +
+                        " Files larger than ${systemProperties.inputFileMaxSize.toMegabytes()}MB are not supported.",
                 message
             )
             return false
@@ -109,7 +108,7 @@ class FileMessageHandler(
         return true
     }
 
-    private suspend fun buildResponse(
+    private fun buildResponse(
         message: Message,
         document: Document,
         gpxAnalyzeResult: GPXAnalyzeResult?,
@@ -126,7 +125,7 @@ class FileMessageHandler(
         }
 
 
-    private suspend fun makeOutFilename(
+    private fun makeOutFilename(
         sourceFilePath: String,
         extension: OutputFormats = OutputFormats.MP4
     ): String {

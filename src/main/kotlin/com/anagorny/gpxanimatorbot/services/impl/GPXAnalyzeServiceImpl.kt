@@ -25,7 +25,7 @@ class GPXAnalyzeServiceImpl(
     private val geoHelper: GeoHelper
 ) : GPXAnalyzeService {
 
-    override fun doAnalyze(file: File): GPXAnalyzeResult {
+    override suspend fun doAnalyze(file: File): GPXAnalyzeResult {
         logger.info { "Starting analyze of GPX file ${file.absolutePath}" }
         val gpx = readGPX(file)
 
@@ -186,12 +186,16 @@ class GPXAnalyzeServiceImpl(
             .middle().orElse(null)
     }
 
-    private fun getCity(wayPoint: WayPoint?): String? {
+    private fun getCity(wayPoint: WayPoint?): String = try {
         val geoJson = geocoderClient.reverse(wayPoint!!.longitude.toDegrees(), wayPoint.latitude.toDegrees())
+
         val properties = geoJson.features.last().properties as Map<String, Any?>
         val city = properties["city"] as String?
-        return city ?: LocationFormatter.ISO_HUMAN_LONG.format(Location.of(wayPoint))
-    }
+        city ?: LocationFormatter.ISO_HUMAN_LONG.format(Location.of(wayPoint))
+    } catch (e: Exception) {
+        logger.error(e) { "Couldn't get city name from external geocoder" }
+        null
+    } ?: LocationFormatter.ISO_HUMAN_LONG.format(Location.of(wayPoint))
 
     companion object : KLogging()
 }
