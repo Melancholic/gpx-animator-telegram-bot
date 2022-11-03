@@ -17,6 +17,7 @@ telegram:
 #GPX Animator params
 gpx-animator-app:
   path: gpx-animator-app.jar
+  executionTimeout: 3m
   outputFormat: MP4
   outWidth: 1024
   outHeight: 1024
@@ -54,16 +55,16 @@ feign:
         decode404: false
         retryer: com.anagorny.gpxanimatorbot.services.impl.RetryerImpl
 
-#Concurency params
-parallel:
-  core-size: ${PARALLEL_CORE}
-  max-size: ${PARALLEL_MAX}
-
 #Logging params
 logging:
+  pattern:
+    console: "${CONSOLE_LOG_PATTERN:%clr(%d{${LOG_DATEFORMAT_PATTERN:yyyy-MM-dd HH:mm:ss.SSS}}){faint} %clr(${LOG_LEVEL_PATTERN:%5p}) %clr(${PID:}){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint}[%X{correlationId}] %m%n${LOG_EXCEPTION_CONVERSION_WORD:%wEx}}"
+    file: ${logging.pattern.console}
+
   level:
     root: INFO
     com.anagorny.gpxanimatorbot.clients: DEBUG
+    com.anagorny.gpxanimatorbot.services.impl.GpxAnimatorRunnerImpl: DEBUG
   file:
     name: ${WORK_DIR}/logs/gpx-animator-telegram-bot.log
   logback:

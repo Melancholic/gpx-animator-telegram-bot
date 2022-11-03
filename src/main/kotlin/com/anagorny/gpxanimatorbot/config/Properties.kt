@@ -30,19 +30,12 @@ data class SystemProperties(
 @ConfigurationProperties(prefix = "gpx-animator-app")
 data class GpxAnimatorAppProperties(
     val path: String,
+    val executionTimeout: Duration,
     val outputFormat: OutputFormats = OutputFormats.MP4,
     val outWidth: Int,
     val outHeight: Int,
     val backgroundMapVisibility: Float,
     val fps: Int
-)
-
-
-@ConstructorBinding
-@ConfigurationProperties(prefix = "parallel")
-data class ConcurrencyProperties(
-    val coreSize: Int,
-    val maxSize: Int
 )
 
 @ConstructorBinding

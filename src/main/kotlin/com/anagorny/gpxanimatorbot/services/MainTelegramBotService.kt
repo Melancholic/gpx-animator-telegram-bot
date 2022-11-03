@@ -2,13 +2,13 @@ package com.anagorny.gpxanimatorbot.services
 
 import com.anagorny.gpxanimatorbot.config.TelegramProperties
 import com.anagorny.gpxanimatorbot.handlers.MainHandler
-import kotlinx.coroutines.CoroutineExceptionHandler
+import com.anagorny.gpxanimatorbot.helpers.launchAsync
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import mu.KLogging
+import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Lazy
+import org.springframework.core.env.Environment
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.extensions.bots.commandbot.TelegramLongPollingCommandBot
 import org.telegram.telegrambots.extensions.bots.commandbot.commands.IBotCommand
@@ -21,14 +21,15 @@ import javax.annotation.PostConstruct
 @Service
 class MainTelegramBotService(
     private val telegramProperties: TelegramProperties,
-    commands: Set<IBotCommand>
+    commands: Set<IBotCommand>,
+    private val scope: CoroutineScope,
+    private val env: Environment
 ) : TelegramLongPollingCommandBot() {
 
     @set:Autowired
     @set:Lazy
     lateinit var mainHandler: MainHandler
 
-    private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default)
     init {
         registerAll(*commands.toTypedArray())
     }
@@ -41,11 +42,9 @@ class MainTelegramBotService(
     override fun getBotUsername() = telegramProperties.bot.name
     override fun getBotToken() = telegramProperties.bot.token
 
-
     override fun processNonCommandUpdate(update: Update) {
-        scope.async(CoroutineExceptionHandler { _, exception ->
-            logger.error(exception) { "CoroutineExceptionHandler got $exception" }
-        }) {
+        scope.launchAsync {
+            MDC.put("correlationId", "${update.message.chatId}-${update.message.messageId}")
             mainHandler.handle(update)
         }
     }

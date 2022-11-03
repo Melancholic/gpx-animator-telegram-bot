@@ -14,7 +14,7 @@ interface GPXAnalyzeService {
     fun startPoint(gpx: GPX): Point?
     fun finishPoint(gpx: GPX): Point?
     fun totalDistance(gpx: GPX): Length?
-    fun doAnalyze(file: File): GPXAnalyzeResult
+    suspend fun doAnalyze(file: File): GPXAnalyzeResult
     fun getAllPoints(gpx: GPX): List<WayPoint>
     fun getAllPointsAsStream(gpx: GPX): Stream<WayPoint>
     fun totalTime(gpx: GPX): Duration
