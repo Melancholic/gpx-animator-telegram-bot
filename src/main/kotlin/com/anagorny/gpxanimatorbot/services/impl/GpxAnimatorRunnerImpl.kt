@@ -9,6 +9,7 @@ import com.anagorny.gpxanimatorbot.utils.StreamGobbler
 import kotlinx.coroutines.CoroutineScope
 import mu.KLogging
 import org.apache.commons.lang3.time.DurationFormatUtils.formatDurationHMS
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
 import java.io.File
 import java.io.InputStream
@@ -23,6 +24,7 @@ import kotlin.concurrent.withLock
 class GpxAnimatorRunnerImpl(
     private val gpxAnimatorAppProperties: GpxAnimatorAppProperties,
     private val telegramProperties: TelegramProperties,
+    @Qualifier("loggingProcessCoroutineScope")
     private val scope: CoroutineScope
 ) : GpxAnimatorRunner {
     private val tag = "GRP-ANIMATOR-APP"

@@ -7,8 +7,8 @@ import kotlinx.coroutines.CoroutineScope
 import mu.KLogging
 import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Lazy
-import org.springframework.core.env.Environment
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.extensions.bots.commandbot.TelegramLongPollingCommandBot
 import org.telegram.telegrambots.extensions.bots.commandbot.commands.IBotCommand
@@ -22,8 +22,8 @@ import javax.annotation.PostConstruct
 class MainTelegramBotService(
     private val telegramProperties: TelegramProperties,
     commands: Set<IBotCommand>,
-    private val scope: CoroutineScope,
-    private val env: Environment
+    @Qualifier("mainFlowCoroutineScope")
+    private val scope: CoroutineScope
 ) : TelegramLongPollingCommandBot() {
 
     @set:Autowired

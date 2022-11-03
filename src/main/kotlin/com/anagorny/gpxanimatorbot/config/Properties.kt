@@ -23,8 +23,12 @@ data class TelegramProperties(
 data class SystemProperties(
     val workDir: String,
     val inputFileMaxSize: DataSize,
-    val rateLimiting: RateLimiterProperties = RateLimiterProperties()
-)
+    val rateLimiting: RateLimiterProperties = RateLimiterProperties(),
+    val executor: ExecutorProperties = ExecutorProperties()
+) {
+    @ConstructorBinding
+    data class ExecutorProperties(val coreSize: Int = 5, val maxSize: Int = 10)
+}
 
 @ConstructorBinding
 @ConfigurationProperties(prefix = "gpx-animator-app")
