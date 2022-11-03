@@ -14,6 +14,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import mu.KLogging
 import org.apache.commons.io.FilenameUtils
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.meta.api.methods.ActionType
 import org.telegram.telegrambots.meta.api.methods.GetFile
@@ -35,7 +36,8 @@ class FileMessageHandler(
     private val rateLimiter: RateLimiter,
     private val botService: MainTelegramBotService,
     private val gpxAnalyzeService: GPXAnalyzeService,
-    private val scope: CoroutineScope
+    @Qualifier("mainFlowCoroutineScope")
+    private val scope: CoroutineScope,
 ) : UpdatesHandler {
 
 

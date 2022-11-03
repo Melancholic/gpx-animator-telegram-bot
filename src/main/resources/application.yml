@@ -25,6 +25,9 @@ gpx-animator-app:
   fps: 60
 
 system:
+  executor:
+    core-size: 4
+    max-size: 8
   #Main params
   input-file-max-size: 5MB
   work-dir: ${WORK_DIR}
@@ -71,3 +74,4 @@ logging:
     rollingpolicy:
       max-history: 5
       max-file-size: 10MB
+

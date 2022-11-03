@@ -2,11 +2,14 @@ package com.anagorny.gpxanimatorbot.helpers
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.slf4j.MDCContext
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import java.util.*
+import java.util.concurrent.Executors
 import java.util.stream.Collectors
 import java.util.stream.Stream
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.math.min
 
 fun <T : Any> Stream<T>.middle(): Optional<T> {
     val list = this.collect(Collectors.toList())
@@ -51,3 +54,17 @@ fun CoroutineScope.launchAsync(
     start: CoroutineStart = CoroutineStart.DEFAULT,
     block: suspend CoroutineScope.() -> Unit,
 ) = launch(context + MDCContext(), start, block)
+
+fun coroutineScope(threads: Int): CoroutineScope {
+    val context = Executors.newFixedThreadPool(min(threads, 2)).asCoroutineDispatcher()
+    return CoroutineScope(context)
+}
+
+fun coroutineScope(coreSize: Int, maxSize: Int): CoroutineScope {
+    val threadPoolTaskExecutor = ThreadPoolTaskExecutor()
+    threadPoolTaskExecutor.corePoolSize = coreSize
+    threadPoolTaskExecutor.maxPoolSize = maxSize
+    threadPoolTaskExecutor.initialize()
+    val context = threadPoolTaskExecutor.asCoroutineDispatcher()
+    return CoroutineScope(context)
+}
