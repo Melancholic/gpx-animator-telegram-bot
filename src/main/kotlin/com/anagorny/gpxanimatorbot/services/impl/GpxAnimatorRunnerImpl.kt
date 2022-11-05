@@ -2,21 +2,22 @@ package com.anagorny.gpxanimatorbot.services.impl
 
 import com.anagorny.gpxanimatorbot.config.GpxAnimatorAppProperties
 import com.anagorny.gpxanimatorbot.config.TelegramProperties
-import com.anagorny.gpxanimatorbot.helpers.launchAsync
 import com.anagorny.gpxanimatorbot.helpers.measureTimeMillis
+import com.anagorny.gpxanimatorbot.helpers.runAsync
 import com.anagorny.gpxanimatorbot.services.GpxAnimatorRunner
 import com.anagorny.gpxanimatorbot.utils.StreamGobbler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
 import mu.KLogging
 import org.apache.commons.lang3.time.DurationFormatUtils.formatDurationHMS
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
 import java.io.File
-import java.io.InputStream
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.ReentrantLock
-import java.util.function.Consumer
 import kotlin.concurrent.withLock
 
 
@@ -31,7 +32,7 @@ class GpxAnimatorRunnerImpl(
     private val locker = ReentrantLock()
 
 
-    override fun run(inFilePath: String, outFilePath: String): File = locker.withLock {
+    override suspend fun run(inFilePath: String, outFilePath: String): File = locker.withLock {
         val process = ProcessBuilder()
             .command(
                 "java", "-jar", gpxAnimatorAppProperties.path,
@@ -44,30 +45,30 @@ class GpxAnimatorRunnerImpl(
                 "--background-map-visibility", "${gpxAnimatorAppProperties.backgroundMapVisibility}",
                 "--fps", "${gpxAnimatorAppProperties.fps}",
                 "--track-icon", "bicycle"
-//                    "--information-position", "'bottom left'"
             )
             .start()
-
-        connectLogger(process)
-
+        val (infoJob, errorJob) = pipeIOtoLogger(process)
         logger.info { "GPX-animator is running with PID = ${process.pid()}..." }
-        val (time, res) = measureTimeMillis {
+
+        val (time, executedSuccess) = measureTimeMillis {
             process.waitFor(
                 gpxAnimatorAppProperties.executionTimeout.toSeconds(),
                 TimeUnit.SECONDS
             )
         }
-        logger.info {
-            "GPX-animator with PID = ${process.pid()} was finished, elapsed time = ${
-                formatDurationHMS(
-                    time
-                )
-            }"
-        }
-        if (!res) {
+        runBlocking { awaitAll(infoJob, errorJob) }
+
+        if (!executedSuccess) {
             process.destroyForcibly()
-            logger.info { "GPX-animator with PID = ${process.pid()} was forcibly killed after timeout in ${gpxAnimatorAppProperties.executionTimeout.toSeconds()} seconds..." }
-            throw TimeoutException("GPX-animator was forcibly killed after timeout in ${gpxAnimatorAppProperties.executionTimeout.toSeconds()} seconds")
+            logger.info {
+                "GPX-animator with PID = ${process.pid()} was forcibly killed after timeout in " +
+                        "${gpxAnimatorAppProperties.executionTimeout.toSeconds()} seconds..."
+            }
+            throw TimeoutException("GPX-animator was forcibly killed after timeout")
+        }
+        logger.info {
+            "GPX-animator with PID=${process.pid()} was finished with " +
+                    "code=${process.exitValue()}, elapsed time=${formatDurationHMS(time)}"
         }
         if (process.exitValue() != 0) {
             throw IllegalStateException("GPX-animator return unsuccessful exit code (${process.exitValue()})")
@@ -81,24 +82,24 @@ class GpxAnimatorRunnerImpl(
         }
     }
 
-    private fun connectLogger(process: Process) {
-        scope.launchAsync { inheritIO(process.inputStream, process.pid(), logger::info) }
-        scope.launchAsync { inheritIO(process.errorStream, process.pid(), logger::error) }
-    }
-
-    private suspend fun inheritIO(
-        stream: InputStream, pid: Long,
-        loggerConsumer: Consumer<String?>
-    ) {
-        StreamGobbler(stream) { line: String? -> loggerConsumer.accept("[$tag-$pid] $line") }.run()
+    private fun pipeIOtoLogger(process: Process): Pair<Deferred<Unit>, Deferred<Unit>> {
+        val infoJob =
+            scope.runAsync {
+                StreamGobbler(process.inputStream) { line: String? -> logger.info("[$tag-${process.pid()}] $line") }.run()
+            }
+        val errorJob =
+            scope.runAsync {
+                StreamGobbler(process.errorStream) { line: String? -> logger.error("[$tag-${process.pid()}] $line") }.run()
+            }
+        return (infoJob to errorJob)
     }
 
     override fun runTest() = locker.withLock {
         val process = Runtime.getRuntime().exec(arrayOf("java", "-jar", gpxAnimatorAppProperties.path, "--version"))
-        connectLogger(process)
+        pipeIOtoLogger(process)
         val res = process.waitFor()
         if (res == 0) {
-            logger.info("GPX-animator was found and returned success ($res)")
+            logger.info("GPX-animator was found and returned successful code (0)")
         } else {
             throw IllegalStateException("GPX-animator return unsuccessful exit code ($res)")
         }

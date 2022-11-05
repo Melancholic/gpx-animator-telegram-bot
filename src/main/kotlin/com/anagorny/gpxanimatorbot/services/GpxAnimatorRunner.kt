@@ -4,5 +4,5 @@ import java.io.File
 
 interface GpxAnimatorRunner {
     fun runTest()
-    fun run(inFilePath: String, outFilePath: String): File
+    suspend fun run(inFilePath: String, outFilePath: String): File
 }
