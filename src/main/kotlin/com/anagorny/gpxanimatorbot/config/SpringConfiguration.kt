@@ -4,6 +4,7 @@ import com.anagorny.gpxanimatorbot.helpers.coroutineScope
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.slf4j.MDCContext
 import org.springframework.boot.web.client.RestTemplateBuilder
@@ -40,7 +41,7 @@ class SpringConfiguration(
     ) + MDCContext()
 
     @Bean
-    fun loggingProcessCoroutineScope(): CoroutineScope = coroutineScope(3) + MDCContext()
+    fun loggingProcessCoroutineScope(): CoroutineScope = coroutineScope(3) + MDCContext() + SupervisorJob()
 
     @Bean
     fun jsonMapper(): ObjectMapper = ObjectMapper()
