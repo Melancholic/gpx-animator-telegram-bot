@@ -6,23 +6,22 @@ import io.jenetics.jpx.*
 import io.jenetics.jpx.geom.Geoid
 import org.springframework.stereotype.Service
 import java.time.Duration
-import java.time.Instant
 import java.util.*
 import java.util.stream.Collectors
 import java.util.stream.DoubleStream
 import kotlin.jvm.optionals.getOrNull
-import kotlin.math.max
-import kotlin.math.min
 
 @Service
 class GeoHelper {
 
     fun avgSpeedOfTrack(track: Track) = track.segments()
         .mapToDouble { avgSpeedOfSegment(it).orElse(Double.NaN) }
+        .filter {it > 0}
         .average().orElse(Double.NaN)
 
     fun maxSpeedOfTrack(track: Track) = track.segments()
         .mapToDouble { maxSpeedOfSegment(it).orElse(Double.NaN) }
+        .filter {it > 0}
         .max().orElse(Double.NaN)
 
     fun avgSpeedOfSegment(segment: TrackSegment): OptionalDouble {
@@ -38,8 +37,7 @@ class GeoHelper {
     fun maxSpeedOfSegment(segment: TrackSegment): OptionalDouble {
         val speedsFromGpx = segment.points.mapNotNull { it.speed.getOrNull() }.toList()
         val result = if (speedsFromGpx.isEmpty()) {
-            // ToDo calculate max speed after track filtering
-            OptionalDouble.empty()
+            calculateSpeeds(segment.points().collect(Collectors.toList())).max()
         } else {
             speedsFromGpx.stream().mapToDouble { it.to(Speed.Unit.KILOMETERS_PER_HOUR) }.max()
         }
@@ -48,30 +46,19 @@ class GeoHelper {
 
 
     fun calculateSpeeds(points: List<WayPoint>): DoubleStream {
-        val speeds = DoubleStream.builder()
-        val totalDuration =
-            Duration.between(points.first().time.orElse(Instant.EPOCH), points.last().time.orElse(Instant.EPOCH))
-        if (totalDuration == Duration.ZERO) return speeds.build()
+        if (points.isEmpty()) return DoubleStream.empty()
+        val firstPointTime = points.first().time.get()
 
-        val step: Int = max(100, (points.size / totalDuration.toMinutes())).toInt()
-
-        for (i in 0 until points.size - 1) {
-            val j = min(i + step, points.size - 1)
-            val a = points[i]
-            val b = points[j]
-
-            var distance = 0.0
-            for (k in i until j) {
-                distance += Geoid.WGS84.distance(points[k], points[k + 1]).to(Length.Unit.METER)
-            }
-
-            speeds.add(
-                distance / ((Duration.between(
-                    a.time.get(),
-                    b.time.get()
-                )).abs().toMillis() / 1000.0) * 3.6
-            )
-        }
-        return speeds.build()
+        return points.asSequence()
+            .filter { it.time.isPresent }
+            .groupBy {Duration.between(firstPointTime, it.time.get()).toMinutes()+1 }
+            .map { (minute, points) ->
+                var distance = 0.0
+                for (i in 0 until points.size - 1) {
+                    distance += Geoid.WGS84.distance(points[i], points[i + 1]).to(Length.Unit.METER)
+                }
+                return@map minute to distance
+            }.stream()
+            .mapToDouble {(_, distance) -> (distance/1000.0) / (1/60.0)}
     }
 }

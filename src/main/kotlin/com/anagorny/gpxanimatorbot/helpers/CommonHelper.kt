@@ -77,3 +77,11 @@ fun coroutineScope(coreSize: Int, maxSize: Int): CoroutineScope {
 }
 
 fun <T : Any> T?.asOptional(): Optional<T> = Optional.ofNullable(this)
+
+fun average(a: Double?, b: Double?): Double {
+    return when(true) {
+        allIsNull(a, b) -> 0.0
+        allIsNotNull(a, b) -> (a!! + b!!) / 2.0
+        else -> a ?: b!!
+    }
+}

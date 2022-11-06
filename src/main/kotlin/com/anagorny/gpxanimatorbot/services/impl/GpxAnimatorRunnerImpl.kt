@@ -18,6 +18,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.ReentrantLock
+import javax.annotation.PostConstruct
 import kotlin.concurrent.withLock
 
 
@@ -30,6 +31,13 @@ class GpxAnimatorRunnerImpl(
 ) : GpxAnimatorRunner {
     private val tag = "GRP-ANIMATOR-APP"
     private val locker = ReentrantLock()
+
+    @PostConstruct
+    fun postConstruct() {
+        logger.info { "GpxAnimatorRunner is initializing..." }
+        runTest()
+        logger.info { "GpxAnimatorRunner was initialized successful." }
+    }
 
 
     override suspend fun run(inFilePath: String, outFilePath: String): File = locker.withLock {

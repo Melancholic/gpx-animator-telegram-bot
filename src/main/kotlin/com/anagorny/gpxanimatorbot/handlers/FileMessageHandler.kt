@@ -16,7 +16,6 @@ import kotlinx.coroutines.slf4j.MDCContext
 import kotlinx.coroutines.withContext
 import mu.KLogging
 import org.apache.commons.io.FilenameUtils
-import org.apache.commons.lang3.time.DurationFormatUtils.formatDuration
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.meta.api.methods.ActionType
@@ -92,7 +91,7 @@ class FileMessageHandler(
             val duration = forecastDuration.get()
                 doResponse(
                     "Your request is processing. " +
-                            "Your GPX file may takes ${formatDuration(duration.toMillis(), "HH:mm:ss")} to process." +
+                            "Your GPX file may takes ${duration.format()} to process." +
                             " Stay in touch \uD83D\uDE42",
                     message
                 ).asOptional()

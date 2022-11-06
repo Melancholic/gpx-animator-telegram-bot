@@ -6,14 +6,10 @@ import org.springframework.stereotype.Service
 
 
 @Service
-class ConsoleAppService(
-    val gpxAnimatorRunner: GpxAnimatorRunner
-) : CommandLineRunner {
+class ConsoleAppService : CommandLineRunner {
 
     override fun run(vararg args: String?) {
-        logger.info("Console app started with args: ${args.contentToString()}")
-        gpxAnimatorRunner.runTest()
-        logger.info("Application was running")
+        logger.info("Application was running with args: ${args.contentToString()}")
     }
 
     companion object : KLogging()

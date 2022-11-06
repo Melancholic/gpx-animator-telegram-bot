@@ -22,6 +22,6 @@ data class ElevationResult(
     var totalDuration: Duration? = null,
     var maxDuration: Duration? = null,
     var sectionMaxSpeed: Double? = null,
-    var sectionMinSpeed: Double? = null,
+    var avgSpeed: Double? = null,
     var maximumAngle: Double? = null
 )
