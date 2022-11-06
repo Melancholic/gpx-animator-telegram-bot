@@ -1,3 +1,5 @@
 system:
   rate-limiting:
     enabled: false
+#forecast:
+#  enabled: false

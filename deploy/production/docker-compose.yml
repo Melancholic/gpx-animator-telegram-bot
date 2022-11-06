@@ -9,6 +9,7 @@ services:
         GPX_ANIMATOR_VER: 1.7.0
         JAR_FILE: ./*gpx-animator-telegram-bot-*.jar
         ENTRY_POINT: ./entry_point.sh
+        GPX_FILE_FOR_FORECAST: ./gpx_for_forecast.gpx
     volumes:
       - /tmp/gpx-animator-telegram-bot-PROD:/tmp/
       - /var/gpx-animator-telegram-bot-PROD/:/var/gpx-animator-telegram-bot/
