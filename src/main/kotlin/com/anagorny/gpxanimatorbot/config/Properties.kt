@@ -56,3 +56,10 @@ data class RateLimiterProperties(
 ) {
     data class LimitProperties(val requests: Long, val period: Duration)
 }
+
+@ConstructorBinding
+@ConfigurationProperties(prefix = "forecast")
+data class ForecastProperties(
+    val enabled: Boolean,
+    val testGpxPath: String
+)

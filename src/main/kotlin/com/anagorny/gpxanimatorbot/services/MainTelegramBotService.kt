@@ -46,7 +46,7 @@ class MainTelegramBotService(
         scope.launchAsync {
             MDC.put("correlationId", "${update.message.chatId}-${update.message.messageId}")
             mainHandler.handle(update)
-        }
+        }.invokeOnCompletion { MDC.clear() }
     }
 
     fun sentAction(chatId: Long, action: ActionType) {

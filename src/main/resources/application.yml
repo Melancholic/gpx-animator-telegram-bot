@@ -58,6 +58,10 @@ feign:
         decode404: false
         retryer: com.anagorny.gpxanimatorbot.services.impl.RetryerImpl
 
+forecast:
+  enabled: true
+  testGpxPath: ${GPX_FILE_FOR_FORECAST}
+
 #Logging params
 logging:
   pattern:

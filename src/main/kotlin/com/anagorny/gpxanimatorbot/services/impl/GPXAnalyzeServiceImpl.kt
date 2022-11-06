@@ -2,6 +2,7 @@ package com.anagorny.gpxanimatorbot.services.impl
 
 import com.anagorny.gpxanimatorbot.clients.GeocoderClient
 import com.anagorny.gpxanimatorbot.helpers.GeoHelper
+import com.anagorny.gpxanimatorbot.helpers.average
 import com.anagorny.gpxanimatorbot.helpers.middle
 import com.anagorny.gpxanimatorbot.model.ElevationResult
 import com.anagorny.gpxanimatorbot.model.GPXAnalyzeResult
@@ -16,8 +17,10 @@ import java.io.File
 import java.time.Duration
 import java.util.stream.Collectors
 import java.util.stream.Stream
-import kotlin.math.*
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.streams.asSequence
+import kotlin.streams.toList
 
 @Service
 class GPXAnalyzeServiceImpl(
@@ -120,15 +123,17 @@ class GPXAnalyzeServiceImpl(
                     ascending.totalDistance = ascending.totalDistance?.plus(pathLength)
                     ascending.maxDistance = max(pathLength, ascending.maxDistance ?: 0.0)
 
-                    val pathDuration = Duration.between(points[pathStartPoint].time.get(), points[i].time.get())
-                    ascending.totalDuration = ascending.totalDuration?.plus(pathDuration)
-                    ascending.maxDuration = max(pathDuration, ascending.maxDuration)
-// ToDo
-//                    val partSpeed = pathLength / pathDuration.toSeconds()
-//                    ascending.maxPartSpeed = max(partSpeed, ascending.maxPartSpeed ?: 0.0)
-//                    ascending.minPartSpeed = min(partSpeed, ascending.minPartSpeed ?: Double.MAX_VALUE)
+                    val sectionDuration = Duration.between(points[pathStartPoint].time.get(), points[i].time.get())
+                    ascending.totalDuration = ascending.totalDuration?.plus(sectionDuration)
+                    ascending.maxDuration = max(sectionDuration, ascending.maxDuration)
 
-//                    val elevationAngle = calculateElevationAngle(points[pathStartPoint], a)
+                    val partSpeeds = geoHelper.calculateSpeeds(points.subList(pathStartPoint, i)).toList()
+                    if (partSpeeds.isNotEmpty()) {
+                        ascending.sectionMaxSpeed = max(partSpeeds.max(), ascending.sectionMaxSpeed ?: 0.0)
+                        ascending.avgSpeed = average(ascending.avgSpeed, partSpeeds.average())
+                    }
+
+//                    val elevationAngle = abs(calculateElevationAngle(points[pathStartPoint], a))
 //                    ascending.maximumAngle = max(elevationAngle, ascending.maximumAngle?:0.0)
 
                     pathStartPoint = i
@@ -145,16 +150,17 @@ class GPXAnalyzeServiceImpl(
                     descending.totalDistance = descending.totalDistance?.plus(pathLength)
                     descending.maxDistance = max(pathLength, descending.maxDistance ?: 0.0)
 
-                    val pathDuration = Duration.between(points[pathStartPoint].time.get(), points[i].time.get())
-                    descending.totalDuration = descending.totalDuration?.plus(pathDuration)
-                    descending.maxDuration = max(pathDuration, descending.maxDuration)
+                    val sectionDuration = Duration.between(points[pathStartPoint].time.get(), points[i].time.get())
+                    descending.totalDuration = descending.totalDuration?.plus(sectionDuration)
+                    descending.maxDuration = max(sectionDuration, descending.maxDuration)
 
-// ToDo
-//                    val partSpeed = pathLength / pathDuration.toSeconds()
-//                    descending.maxPartSpeed = max(partSpeed, descending.maxPartSpeed ?: 0.0)
-//                    descending.minPartSpeed = min(partSpeed, descending.minPartSpeed ?: Double.MAX_VALUE)
 
-//                    val elevationAngle = calculateElevationAngle(points[pathStartPoint], a)
+                    val partSpeeds = geoHelper.calculateSpeeds(points.subList(pathStartPoint, i)).toList()
+                    if (partSpeeds.isNotEmpty()) {
+                        descending.sectionMaxSpeed = max(partSpeeds.max(), descending.sectionMaxSpeed ?: 0.0)
+                        descending.avgSpeed = average(descending.avgSpeed, partSpeeds.average())
+                    }
+//                    val elevationAngle = abs(calculateElevationAngle(points[pathStartPoint], a))
 //                    descending.maximumAngle = max(elevationAngle, descending.maximumAngle?:0.0)
 
                     pathStartPoint = i
@@ -165,12 +171,15 @@ class GPXAnalyzeServiceImpl(
         return ascending to descending
     }
 
+
     // ToDo
-    private fun calculateElevationAngle(a: Point, b: Point): Double {
-        val dy: Double = b.latitude.toRadians() - a.latitude.toRadians()
-        val dx: Double = cos(PI / 180 * a.latitude.toRadians()) * (b.longitude.toRadians() - a.longitude.toRadians())
-        return Math.toDegrees(atan2(dy, dx))
-    }
+//    private fun calculateElevationAngle(a: Point, b: Point): Double {
+//        val dy: Double = abs(b.latitude.toRadians() - a.latitude.toRadians())
+//        val dx: Double = cos(PI / 180 * a.latitude.toRadians()) * abs(b.longitude.toRadians() - a.longitude.toRadians())
+//        val vert: Double = sqrt(dy*dy+dx*dx)
+//        val horiz: Double = b.elevation.map { it.to(Length.Unit.METER) }.orElse(0.0) - a.elevation.map { it.to(Length.Unit.METER) }.orElse(0.0)
+//        return atan(vert/horiz)
+//    }
 
     private fun max(a: Duration?, b: Duration?): Duration {
         return if ((a ?: Duration.ZERO) >= (b ?: Duration.ZERO)) a ?: Duration.ZERO else b ?: Duration.ZERO

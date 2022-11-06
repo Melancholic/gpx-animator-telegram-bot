@@ -3,6 +3,7 @@ package com.anagorny.gpxanimatorbot.helpers
 import kotlinx.coroutines.*
 import kotlinx.coroutines.slf4j.MDCContext
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
+import java.time.Duration
 import java.util.*
 import java.util.concurrent.Executors
 import java.util.stream.Collectors
@@ -42,6 +43,12 @@ fun <T> measureTimeMillis(block: () -> T): Pair<Long, T> {
     return (System.currentTimeMillis() - start) to result
 }
 
+fun <T> measureTime(block: () -> T): Pair<Duration, T> {
+    val start = System.currentTimeMillis()
+    val result = block()
+    return Duration.ofMillis(System.currentTimeMillis() - start) to result
+}
+
 suspend fun <T> io(block: CoroutineScope.() -> T) = withContext(Dispatchers.IO + MDCContext()) { block() }
 fun <T> CoroutineScope.runAsync(
     context: CoroutineContext = EmptyCoroutineContext,
@@ -67,4 +74,14 @@ fun coroutineScope(coreSize: Int, maxSize: Int): CoroutineScope {
     threadPoolTaskExecutor.initialize()
     val context = threadPoolTaskExecutor.asCoroutineDispatcher()
     return CoroutineScope(context)
+}
+
+fun <T : Any> T?.asOptional(): Optional<T> = Optional.ofNullable(this)
+
+fun average(a: Double?, b: Double?): Double {
+    return when(true) {
+        allIsNull(a, b) -> 0.0
+        allIsNotNull(a, b) -> (a!! + b!!) / 2.0
+        else -> a ?: b!!
+    }
 }
