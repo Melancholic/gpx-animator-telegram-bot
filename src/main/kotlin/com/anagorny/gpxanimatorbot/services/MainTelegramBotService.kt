@@ -3,6 +3,7 @@ package com.anagorny.gpxanimatorbot.services
 import com.anagorny.gpxanimatorbot.config.TelegramProperties
 import com.anagorny.gpxanimatorbot.handlers.MainHandler
 import com.anagorny.gpxanimatorbot.helpers.launchAsync
+import jakarta.annotation.PostConstruct
 import kotlinx.coroutines.CoroutineScope
 import mu.KLogging
 import org.slf4j.MDC
@@ -15,7 +16,6 @@ import org.telegram.telegrambots.extensions.bots.commandbot.commands.IBotCommand
 import org.telegram.telegrambots.meta.api.methods.ActionType
 import org.telegram.telegrambots.meta.api.methods.send.SendChatAction
 import org.telegram.telegrambots.meta.api.objects.Update
-import javax.annotation.PostConstruct
 
 
 @Service

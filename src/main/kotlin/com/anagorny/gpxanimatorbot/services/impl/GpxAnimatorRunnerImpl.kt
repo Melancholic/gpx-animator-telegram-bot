@@ -6,6 +6,7 @@ import com.anagorny.gpxanimatorbot.helpers.measureTimeMillis
 import com.anagorny.gpxanimatorbot.helpers.runAsync
 import com.anagorny.gpxanimatorbot.services.GpxAnimatorRunner
 import com.anagorny.gpxanimatorbot.utils.StreamGobbler
+import jakarta.annotation.PostConstruct
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.awaitAll
@@ -18,7 +19,6 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.ReentrantLock
-import javax.annotation.PostConstruct
 import kotlin.concurrent.withLock
 
 

@@ -2,11 +2,9 @@ package com.anagorny.gpxanimatorbot.config
 
 import com.anagorny.gpxanimatorbot.model.OutputFormats
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 import org.springframework.util.unit.DataSize
 import java.time.Duration
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = "telegram")
 data class TelegramProperties(
     val chatId: String,
@@ -18,7 +16,6 @@ data class TelegramProperties(
     )
 }
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = "system")
 data class SystemProperties(
     val workDir: String,
@@ -26,11 +23,9 @@ data class SystemProperties(
     val rateLimiting: RateLimiterProperties = RateLimiterProperties(),
     val executor: ExecutorProperties = ExecutorProperties()
 ) {
-    @ConstructorBinding
     data class ExecutorProperties(val coreSize: Int = 5, val maxSize: Int = 10)
 }
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = "gpx-animator-app")
 data class GpxAnimatorAppProperties(
     val path: String,
@@ -42,7 +37,6 @@ data class GpxAnimatorAppProperties(
     val fps: Int
 )
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = "retryer")
 data class RetryerProperties(
     val maxAttempts: Int,
@@ -57,7 +51,6 @@ data class RateLimiterProperties(
     data class LimitProperties(val requests: Long, val period: Duration)
 }
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = "forecast")
 data class ForecastProperties(
     val enabled: Boolean,
