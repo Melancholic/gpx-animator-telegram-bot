@@ -8,8 +8,6 @@ import com.anagorny.gpxanimatorbot.model.ElevationResult
 import com.anagorny.gpxanimatorbot.model.GPXAnalyzeResult
 import com.anagorny.gpxanimatorbot.services.GPXAnalyzeService
 import io.jenetics.jpx.*
-import io.jenetics.jpx.format.Location
-import io.jenetics.jpx.format.LocationFormatter
 import io.jenetics.jpx.geom.Geoid
 import mu.KLogging
 import org.springframework.stereotype.Service
@@ -27,6 +25,15 @@ class GPXAnalyzeServiceImpl(
     private val geocoderClient: GeocoderClient,
     private val geoHelper: GeoHelper
 ) : GPXAnalyzeService {
+
+    override suspend fun gpxPreparation(file: File) {
+        var gpx = readGPX(file)
+        val isRoundTrip = isRoundTrip(gpx)
+        if (isRoundTrip) {
+            gpx = splitTracks(gpx, 2)
+            GPX.write(gpx, file.toPath())
+        }
+    }
 
     override suspend fun doAnalyze(file: File): GPXAnalyzeResult {
         logger.info { "Starting analyze of GPX file ${file.absolutePath}" }
@@ -188,6 +195,54 @@ class GPXAnalyzeServiceImpl(
 
     override fun totalAscending(gpx: GPX): Double? = null
     override fun totalDescending(gpx: GPX): Double? = null
+    override fun isRoundTrip(gpx: GPX): Boolean {
+        return Geoid.WGS84.distance(
+            startPoint(gpx) ?: WayPoint.of(0.0, 0.0),
+            finishPoint(gpx) ?: WayPoint.of(0.0, 0.0)
+        ).to(Length.Unit.METER) < 100.0
+    }
+
+    override fun getMiddlePoint(gpx: GPX): Point? {
+        val middleOfDistance = (totalDistance(gpx)?.to(Length.Unit.METER) ?: 0.0) / 2
+        val points = getAllPoints(gpx)
+
+        var distance = 0.0
+        for (i in 0 until points.lastIndex) {
+            val j = i + 1
+            distance += Geoid.WGS84.distance(points[i], points[j]).to(Length.Unit.METER)
+            if (distance >= middleOfDistance) {
+                return points[j]
+            }
+        }
+        return null
+    }
+
+    override fun splitTracks(gpx: GPX, count: Int): GPX {
+        val builderTo = gpx.toBuilder()
+
+        val middleOfDistance = (totalDistance(gpx)?.to(Length.Unit.METER) ?: 0.0) / count
+        val points = getAllPoints(gpx)
+        val pointsTo = ArrayList<WayPoint>()
+        val pointsFrom = ArrayList<WayPoint>()
+
+        var distance = 0.0
+        pointsTo.add(points[0])
+        for (i in 0 until points.lastIndex) {
+            val j = i + 1
+            distance += Geoid.WGS84.distance(points[i], points[j]).to(Length.Unit.METER)
+            if (distance < middleOfDistance) {
+                pointsTo.add(points[j])
+            } else {
+                pointsFrom.add(points[j])
+            }
+        }
+        return builderTo.tracks(
+            listOf(
+                Track.builder().segments(listOf(TrackSegment.of(pointsTo))).build(),
+                Track.builder().segments(listOf(TrackSegment.of(pointsFrom))).build()
+            )).build()
+    }
+
     private fun throughPoint(gpx: GPX): WayPoint? {
         return gpx.tracks()
             .flatMap { it.segments() }
@@ -195,16 +250,20 @@ class GPXAnalyzeServiceImpl(
             .middle().orElse(null)
     }
 
-    private fun getCity(wayPoint: WayPoint?): String = try {
-        val geoJson = geocoderClient.reverse(wayPoint!!.longitude.toDegrees(), wayPoint.latitude.toDegrees())
-
-        val properties = geoJson.features.last().properties as Map<String, Any?>
-        val city = properties["city"] as String?
-        city ?: LocationFormatter.ISO_HUMAN_LONG.format(Location.of(wayPoint))
+    private fun getCity(point: Point?): String? = try {
+        if (point != null) {
+            val geoJson = geocoderClient.reverse(point.longitude.toDegrees(), point.latitude.toDegrees())
+            geoJson.features.asSequence()
+                .map { it.properties as Map<String, Any?> }
+                .mapNotNull { (it["city"] ?: it["county"]) as String? }
+                .firstOrNull()
+        } else {
+            null
+        }
     } catch (e: Exception) {
         logger.error(e) { "Couldn't get city name from external geocoder" }
         null
-    } ?: LocationFormatter.ISO_HUMAN_LONG.format(Location.of(wayPoint))
+    }
 
     companion object : KLogging()
 }

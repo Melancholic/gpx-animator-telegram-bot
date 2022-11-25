@@ -4,16 +4,13 @@ import com.anagorny.gpxanimatorbot.helpers.coroutineScope
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.slf4j.MDCContext
-import org.springframework.boot.web.client.RestTemplateBuilder
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import org.springframework.core.task.AsyncTaskExecutor
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
-import org.springframework.web.client.RestTemplate
 import org.telegram.telegrambots.starter.TelegramBotStarterConfiguration
 
 @Configuration
@@ -22,12 +19,6 @@ import org.telegram.telegrambots.starter.TelegramBotStarterConfiguration
 class SpringConfiguration(
     val properties: SystemProperties
 ) {
-
-    @Bean
-    fun restTemplate(builder: RestTemplateBuilder): RestTemplate {
-        // Do any additional configuration here
-        return builder.build()
-    }
 
     @Bean
     fun threadPoolTaskExecutor(): AsyncTaskExecutor {
@@ -42,9 +33,6 @@ class SpringConfiguration(
         properties.executor.coreSize,
         properties.executor.maxSize
     ) + MDCContext()
-
-    @Bean
-    fun loggingProcessCoroutineScope(): CoroutineScope = coroutineScope(3) + MDCContext() + SupervisorJob()
 
     @Bean
     fun jsonMapper(): ObjectMapper = ObjectMapper()

@@ -9,6 +9,7 @@ import com.anagorny.gpxanimatorbot.services.GpxAnimatorRunner
 import com.anagorny.gpxanimatorbot.services.GpxProcessor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.slf4j.MDCContext
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
 import java.io.File
@@ -32,9 +33,10 @@ class GpxProcessorIml(
         gpxAnimatorRunner.run(file.absolutePath, outFilePath)
     }
 
-    override suspend fun doProcess(file: File): Pair<GPXAnalyzeResult, File> {
-        val gpxAnalyzeResultDeferred = asyncAnalyzeGpxFile(file)
-        val gpxAnimatorRunningResultDeferred: Deferred<File> = asyncRenderVideo(file)
+    override suspend fun doProcess(originalFile: File): Pair<GPXAnalyzeResult, File> {
+        scope.runAsync(MDCContext()) {  gpxAnalyzeService.gpxPreparation(originalFile)}.await()
+        val gpxAnalyzeResultDeferred = asyncAnalyzeGpxFile(originalFile)
+        val gpxAnimatorRunningResultDeferred: Deferred<File> = asyncRenderVideo(originalFile)
 
         return gpxAnalyzeResultDeferred.await() to gpxAnimatorRunningResultDeferred.await()
     }
