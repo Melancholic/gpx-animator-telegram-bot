@@ -10,12 +10,15 @@ import kotlinx.coroutines.slf4j.MDCContext
 import org.springframework.boot.web.client.RestTemplateBuilder
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.core.task.AsyncListenableTaskExecutor
+import org.springframework.context.annotation.Import
+import org.springframework.core.task.AsyncTaskExecutor
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.web.client.RestTemplate
-
+import org.telegram.telegrambots.starter.TelegramBotStarterConfiguration
 
 @Configuration
+//ToDo remove it after migration telegrambots-spring-boot-starter to spring boot 3.0
+@Import(value = [TelegramBotStarterConfiguration::class])
 class SpringConfiguration(
     val properties: SystemProperties
 ) {
@@ -27,7 +30,7 @@ class SpringConfiguration(
     }
 
     @Bean
-    fun threadPoolTaskExecutor(): AsyncListenableTaskExecutor {
+    fun threadPoolTaskExecutor(): AsyncTaskExecutor {
         val threadPoolTaskExecutor = ThreadPoolTaskExecutor()
         threadPoolTaskExecutor.corePoolSize = properties.executor.coreSize
         threadPoolTaskExecutor.maxPoolSize = properties.executor.maxSize
