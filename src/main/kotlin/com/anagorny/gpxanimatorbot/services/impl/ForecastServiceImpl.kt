@@ -6,6 +6,7 @@ import com.anagorny.gpxanimatorbot.helpers.measureTime
 import com.anagorny.gpxanimatorbot.services.ForecastService
 import com.anagorny.gpxanimatorbot.services.GPXAnalyzeService
 import com.anagorny.gpxanimatorbot.services.GpxProcessor
+import jakarta.annotation.PostConstruct
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.runBlocking
 import mu.KLogging
@@ -16,7 +17,6 @@ import org.springframework.stereotype.Service
 import java.io.File
 import java.time.Duration
 import java.util.*
-import javax.annotation.PostConstruct
 import kotlin.math.roundToLong
 
 @Service("forecastService")
