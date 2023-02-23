@@ -20,4 +20,8 @@ interface GPXAnalyzeService {
     fun totalTime(gpx: GPX): Duration
     fun totalAscending(gpx: GPX): Double?
     fun totalDescending(gpx: GPX): Double?
+    suspend fun gpxPreparation(file: File)
+    fun splitTracks(gpx: GPX, count: Int): GPX
+    fun isRoundTrip(gpx: GPX): Boolean
+    fun getMiddlePoint(gpx: GPX): Point?
 }
