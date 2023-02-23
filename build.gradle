@@ -83,9 +83,7 @@ task distrib(type: Zip, dependsOn: bootJar) {
         }
     }
 
-
-    archiveName "${baseName}.zip"
-
+    archiveFileName = provider { "${baseName}.zip" }
 }
 
 build.dependsOn(distrib)
