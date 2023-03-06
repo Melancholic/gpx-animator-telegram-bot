@@ -46,7 +46,7 @@ dependencies {
     implementation "org.telegram:telegrambots-spring-boot-starter:$telegrambots_version"
     implementation "org.telegram:telegrambotsextensions:$telegrambots_version"
     implementation 'org.apache.commons:commons-lang3:3.12.0'
-    implementation "com.bucket4j:bucket4j-core:8.1.1"
+    implementation "com.bucket4j:bucket4j-core:8.2.0"
     implementation 'io.jenetics:jpx:3.0.1'
     implementation "org.springframework.cloud:spring-cloud-starter-openfeign"
     implementation 'io.github.openfeign:feign-slf4j'
