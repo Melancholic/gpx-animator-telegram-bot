@@ -3,7 +3,7 @@ buildscript {
     ext {
         kotlin_version = "1.8.10"
         corutines_version = "1.6.4"
-        spring_boot_version = "3.0.4"
+        spring_boot_version = "3.0.5"
         spring_cloud_version = "2022.0.1"
         telegrambots_version = "6.5.0"
     }
