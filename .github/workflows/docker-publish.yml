@@ -34,7 +34,7 @@ jobs:
           java-version: '25'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       # Auto-release: every merge to main is tagged & published, same as ./build-release.sh
       # locally. Re-attach the branch (checkout leaves it detached) since nebula needs one.
