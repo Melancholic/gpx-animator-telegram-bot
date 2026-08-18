@@ -18,7 +18,7 @@ plugins {
     id "org.jetbrains.kotlin.jvm" version "$kotlin_version"
     id "org.jetbrains.kotlin.plugin.spring" version "$kotlin_version"
     id 'org.springframework.boot' version "$spring_boot_version"
-    id "nebula.release" version "21.0.0"
+    id "nebula.release" version "21.0.1"
 }
 
 java {
