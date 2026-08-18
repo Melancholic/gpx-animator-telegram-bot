@@ -1,7 +1,3 @@
-#Web-server params
-server:
-  port: ${PORT:8080}
-
 #Telegram params
 telegram:
   chat-id: ${TG_CHANNEL_ID}
@@ -47,16 +43,8 @@ retryer:
 external:
   geocoder:
     url: https://photon.komoot.io/
-
-feign:
-  client:
-    config:
-      default:
-        connectTimeout: 100
-        readTimeout: 500
-        loggerLevel: basic
-        decode404: false
-        retryer: com.anagorny.gpxanimatorbot.services.impl.RetryerImpl
+    connect-timeout: 100ms
+    read-timeout: 500ms
 
 forecast:
   enabled: true

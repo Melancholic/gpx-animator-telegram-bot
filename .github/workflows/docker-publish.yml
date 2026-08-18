@@ -1,0 +1,110 @@
+name: Docker Build & Publish
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # needed to push the release tag created by nebula.release below
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # nebula.release needs full history/tags to compute the version
+
+      - name: Set image name
+        run: echo "IMAGE_NAME=${REGISTRY}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Auto-release: every merge to main is tagged & published, same as ./build-release.sh
+      # locally. Re-attach the branch (checkout leaves it detached) since nebula needs one.
+      # `final` pulls in the whole build/assemble graph, stamping a jar with a pre-release
+      # dev version before it tags - wipe it so "Build boot jar" below starts clean.
+      - name: Tag release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git checkout -B main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          ./gradlew final --no-daemon # final depends on build (bootJar, distrib, ...)
+          rm -rf build
+
+      - name: Determine release version
+        if: github.event_name == 'push'
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_ENV"
+          else
+            tag=$(git describe --tags --exact-match 2>/dev/null || true)
+            echo "RELEASE_VERSION=${tag#v}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build boot jar
+        run: ./gradlew bootJar --no-daemon
+
+      - name: Locate boot jar
+        id: jar
+        run: |
+          mapfile -t jars < <(find build/libs -maxdepth 1 -name '*.jar' ! -name '*-plain.jar')
+          if [[ ${#jars[@]} -ne 1 ]]; then
+            echo "Expected exactly one boot jar in build/libs, found ${#jars[@]}: ${jars[*]}" >&2
+            exit 1
+          fi
+          echo "path=${jars[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}},value=${{ env.RELEASE_VERSION }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ env.RELEASE_VERSION }}
+            type=sha
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/common/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            JAR_FILE=${{ steps.jar.outputs.path }}
+            ENTRY_POINT=deploy/common/entry_point.sh
+            GPX_FILE_FOR_FORECAST=deploy/common/gpx_for_forecast.gpx
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -3,6 +3,9 @@
 
 # Log file
 *.log
+# ...and logback's rotated archives, which *.log doesn't match (app.log.2026-08-14.0.gz)
+*.log.*
+logs/
 
 # BlueJ files
 *.ctxt
@@ -26,5 +29,7 @@ hs_err_pid*
 .idea/
 .gradle/
 build/
+# Kotlin 2.x build-tools session dir
+.kotlin/
 
 !gradle/wrapper/gradle-wrapper.jar

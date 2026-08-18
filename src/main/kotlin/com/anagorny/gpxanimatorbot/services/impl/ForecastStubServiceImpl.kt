@@ -1,7 +1,7 @@
 package com.anagorny.gpxanimatorbot.services.impl
 
 import com.anagorny.gpxanimatorbot.services.ForecastService
-import mu.KLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.stereotype.Service
 import java.io.File
@@ -17,5 +17,7 @@ class ForecastStubServiceImpl : ForecastService {
 
     override suspend fun forecast(gpxFile: File): Optional<Duration> = Optional.empty()
 
-    companion object : KLogging()
+    companion object {
+        val logger = KotlinLogging.logger {}
+    }
 }

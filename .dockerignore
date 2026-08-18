@@ -1,0 +1,9 @@
+# Only the CI build sees this file: it builds with `context: .`, so without an
+# allowlist the whole repo (.git, .gradle, build/classes, .idea, the checked-in
+# gpx-animator fat jars) ships to the daemon.
+# Local `docker compose build` runs inside the unpacked distrib dir and is unaffected.
+*
+!build/libs/*.jar
+!deploy/common/entry_point.sh
+!deploy/common/Dockerfile
+!deploy/common/gpx_for_forecast.gpx
