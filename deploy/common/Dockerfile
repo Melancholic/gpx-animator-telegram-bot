@@ -1,33 +1,46 @@
-FROM bellsoft/liberica-openjdk-alpine:17
-VOLUME /tmp
+FROM bellsoft/liberica-openjre-alpine:25
+
 ARG JAR_FILE
 ARG ENTRY_POINT
-ARG GPX_ANIMATOR_VER
 ARG GPX_FILE_FOR_FORECAST
-EXPOSE 3000/tcp
-ENV LANG en_US.utf8
-RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.12/main" >  /etc/apk/repositories \
-    && echo "https://dl-cdn.alpinelinux.org/alpine/v3.12/community" >> /etc/apk/repositories
+# Single source of truth for the GPX Animator CLI version - both docker-compose
+# files and the CI build inherit it from here.
+ARG GPX_ANIMATOR_VER=1.8.2
+ARG WORK_DIR=/var/gpx-animator-telegram-bot
 
-RUN apk update \
-    && apk upgrade --available && sync \
-    && apk add ca-certificates libva-intel-driver \
-    && apk add --no-cache tzdata \
-    && apk add wget \
-    && rm -rf /var/cache/
+# tzdata: musl ships no zoneinfo db, so TZ (Europe/Moscow) is a no-op without it
+# ca-certificates: HTTPS to the Telegram API, photon.komoot.io and the map tile server
+# fontconfig/ttf-dejavu: GPX Animator renders text into the video via AWT
+# wget: GNU rather than busybox's, whose HTTPS support depends on ssl_client being
+#       present in the base image - the jar download below must not be a coin flip
+RUN apk add --no-cache tzdata ca-certificates fontconfig ttf-dejavu wget \
+    && fc-cache --force
 
-# Required for fonts in java
-RUN apk add fontconfig ttf-dejavu \
-    && apk add --update font-adobe-100dpi fontconfig ttf-dejavu \
-    && fc-cache --force \
-    && /usr/glibc/sbin/ldconfig \
-    && rm -rf /var/cache/
+ENV LANG=en_US.utf8
 
-RUN wget -q https://download.gpx-animator.app/gpx-animator-${GPX_ANIMATOR_VER}-all.jar -O gpx-animator-app.jar  \
-    && java -jar gpx-animator-app.jar --version
+RUN addgroup -S -g 1000 app \
+    && adduser -S -u 1000 -G app -h /app app
 
-COPY ${JAR_FILE} gpx-animator-telegram-bot.jar
-COPY ${ENTRY_POINT} entry_point.sh
-COPY ${GPX_FILE_FOR_FORECAST} gpx_for_forecast.gpx
+# Pre-created so the bot can write logs even when the host dir isn't
+# bind-mounted; with a mount, host ownership wins and must match uid 1000.
+RUN mkdir -p "$WORK_DIR/logs" && chown -R app:app "$WORK_DIR"
+
+WORKDIR /app
+# Fetched at image build time rather than shipped in the distrib: the fat jar is ~270MB.
+# Pulled from GitHub Releases, which keeps every version, rather than from
+# download.gpx-animator.app, which only ever serves the current one (1.8.0 and 1.8.1 are
+# already 404 there). Tag == version from 1.8.1 on; the 1.8.0 asset lives under `v1.8`.
+# The jar stays root-owned - mode 644 is all `java -jar` needs, and chowning 270MB
+# into a second layer would double the image size.
+RUN set -eux; \
+    wget -O gpx-animator-app.jar \
+      "https://github.com/gpx-animator/gpx-animator/releases/download/v${GPX_ANIMATOR_VER}/gpx-animator-${GPX_ANIMATOR_VER}-all.jar"; \
+    java -jar gpx-animator-app.jar --version
+
+COPY --chown=app:app ${JAR_FILE} gpx-animator-telegram-bot.jar
+COPY --chown=app:app ${ENTRY_POINT} entry_point.sh
+COPY --chown=app:app ${GPX_FILE_FOR_FORECAST} gpx_for_forecast.gpx
+
+USER app
 
 ENTRYPOINT ["sh", "./entry_point.sh"]

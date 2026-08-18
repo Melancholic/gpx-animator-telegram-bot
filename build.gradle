@@ -1,11 +1,11 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 buildscript {
     ext {
-        kotlin_version = "1.8.10"
-        corutines_version = "1.6.4"
-        spring_boot_version = "3.0.4"
-        spring_cloud_version = "2022.0.1"
-        telegrambots_version = "6.5.0"
+        kotlin_version = "2.4.10"
+        corutines_version = "1.11.0"
+        spring_boot_version = "4.1.0"
+        telegrambots_version = "10.2.0"
     }
     repositories {
         mavenCentral()
@@ -18,46 +18,49 @@ plugins {
     id "org.jetbrains.kotlin.jvm" version "$kotlin_version"
     id "org.jetbrains.kotlin.plugin.spring" version "$kotlin_version"
     id 'org.springframework.boot' version "$spring_boot_version"
-    id "io.spring.dependency-management" version "1.1.0"
-    id "nebula.release" version "17.2.0"
+    id "nebula.release" version "21.0.0"
 }
 
-sourceCompatibility = JavaVersion.VERSION_17
-
-ext {
-}
-apply plugin: "io.spring.dependency-management"
-
-dependencyManagement {
-    imports {
-        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${spring_cloud_version}"
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
+
+// Boot 4.1's BOM pins kotlin.version to 2.3.21; override so the 2.4.10 stdlib we
+// compile against doesn't end up paired with an older Kotlin runtime.
+ext['kotlin.version'] = kotlin_version
+
 dependencies {
+    implementation platform("org.springframework.boot:spring-boot-dependencies:$spring_boot_version")
+
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$corutines_version"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-slf4j:$corutines_version"
-    implementation 'org.jetbrains.kotlin:kotlin-reflect'
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
-    implementation 'io.github.microutils:kotlin-logging-jvm:3.0.5'
-    implementation "org.springframework.boot:spring-boot-starter-web"
+    implementation 'io.github.oshai:kotlin-logging-jvm:8.0.4'
+    implementation "org.springframework.boot:spring-boot-starter"
+    implementation "org.springframework.boot:spring-boot-restclient"
     implementation "org.springframework.boot:spring-boot-configuration-processor"
     implementation "org.springframework:spring-context-support"
-    implementation "com.fasterxml.jackson.module:jackson-module-kotlin"
-    implementation "org.telegram:telegrambots-spring-boot-starter:$telegrambots_version"
-    implementation "org.telegram:telegrambotsextensions:$telegrambots_version"
-    implementation 'org.apache.commons:commons-lang3:3.12.0'
-    implementation "com.bucket4j:bucket4j-core:8.2.0"
-    implementation 'io.jenetics:jpx:3.0.1'
-    implementation "org.springframework.cloud:spring-cloud-starter-openfeign"
-    implementation 'io.github.openfeign:feign-slf4j'
-    implementation 'de.grundid.opendatalab:geojson-jackson:1.14'
+    implementation "tools.jackson.module:jackson-module-kotlin"
+    implementation "org.telegram:telegrambots-springboot-longpolling-starter:$telegrambots_version"
+    implementation "org.telegram:telegrambots-client:$telegrambots_version"
+    // Only the long-polling/command classes are used; the webhook half drags in Javalin+Jetty.
+    implementation("org.telegram:telegrambots-extensions:$telegrambots_version") {
+        exclude group: "org.telegram", module: "telegrambots-webhook"
+    }
+    implementation 'org.apache.commons:commons-lang3:3.20.0'
+    implementation 'commons-io:commons-io:2.22.0'
+    implementation "com.bucket4j:bucket4j_jdk17-core:8.19.0"
+    implementation 'io.jenetics:jpx:3.2.1'
 }
 
 repositories {
     mavenCentral()
 }
 
-task distrib(type: Zip, dependsOn: bootJar) {
+tasks.register('distrib', Zip) {
+    dependsOn bootJar
     def baseName = "${project.name}-${project.version}"
 
     into("$baseName/") {
@@ -88,9 +91,9 @@ task distrib(type: Zip, dependsOn: bootJar) {
 
 build.dependsOn(distrib)
 
-tasks.withType(KotlinCompile) {
-    kotlinOptions {
-        freeCompilerArgs = ['-Xjsr305=strict']
-        jvmTarget = '17'
+tasks.withType(KotlinCompile).configureEach {
+    compilerOptions {
+        freeCompilerArgs.add('-Xjsr305=strict')
+        jvmTarget = JvmTarget.JVM_25
     }
 }

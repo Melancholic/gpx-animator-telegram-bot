@@ -11,7 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
-import mu.KLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.commons.lang3.time.DurationFormatUtils.formatDurationHMS
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
@@ -83,7 +83,7 @@ class GpxAnimatorRunnerImpl(
         }
         val outFile = File(outFilePath)
         if (outFile.exists()) {
-            logger.info("File '$outFilePath' was created")
+            logger.info { "File '$outFilePath' was created" }
             return@withLock outFile
         } else {
             throw IllegalStateException("Output file '$outFile' isn't exist")
@@ -93,11 +93,11 @@ class GpxAnimatorRunnerImpl(
     private fun pipeIOtoLogger(process: Process): Pair<Deferred<Unit>, Deferred<Unit>> {
         val infoJob =
             scope.runAsync {
-                StreamGobbler(process.inputStream) { line: String? -> logger.info("[$tag-${process.pid()}] $line") }.run()
+                StreamGobbler(process.inputStream) { line: String? -> logger.info { "[$tag-${process.pid()}] $line" } }.run()
             }
         val errorJob =
             scope.runAsync {
-                StreamGobbler(process.errorStream) { line: String? -> logger.error("[$tag-${process.pid()}] $line") }.run()
+                StreamGobbler(process.errorStream) { line: String? -> logger.error { "[$tag-${process.pid()}] $line" } }.run()
             }
         return (infoJob to errorJob)
     }
@@ -107,11 +107,13 @@ class GpxAnimatorRunnerImpl(
         pipeIOtoLogger(process)
         val res = process.waitFor()
         if (res == 0) {
-            logger.info("GPX-animator was found and returned successful code (0)")
+            logger.info { "GPX-animator was found and returned successful code (0)" }
         } else {
             throw IllegalStateException("GPX-animator return unsuccessful exit code ($res)")
         }
     }
 
-    companion object : KLogging()
+    companion object {
+        val logger = KotlinLogging.logger {}
+    }
 }

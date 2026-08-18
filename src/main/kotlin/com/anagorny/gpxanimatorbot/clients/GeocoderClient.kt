@@ -1,19 +1,16 @@
 package com.anagorny.gpxanimatorbot.clients
 
-import org.geojson.FeatureCollection
-import org.springframework.cloud.openfeign.FeignClient
-import org.springframework.stereotype.Service
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RequestParam
-
-@Service
-@FeignClient(value = "geocoderClient", url = "\${external.geocoder.url}")
 interface GeocoderClient {
 
-    @GetMapping("/reverse")
-    fun reverse(
-        @RequestParam("lon") lon: Double,
-        @RequestParam("lat") lat: Double,
-        @RequestParam(defaultValue = "en") lang: String = "en"
-    ): FeatureCollection
+    fun reverse(lon: Double, lat: Double, lang: String = "en"): ReverseGeocodingResult
+}
+
+/**
+ * The GeoJSON photon.komoot.io answers with, narrowed to the only part we read.
+ * Feature properties are free-form (city/state/country/...), so they stay a map.
+ */
+data class ReverseGeocodingResult(
+    val features: List<Feature> = emptyList()
+) {
+    data class Feature(val properties: Map<String, Any?> = emptyMap())
 }

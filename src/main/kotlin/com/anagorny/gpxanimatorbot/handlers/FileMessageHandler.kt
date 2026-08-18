@@ -7,14 +7,13 @@ import com.anagorny.gpxanimatorbot.model.GPXAnalyzeResult
 import com.anagorny.gpxanimatorbot.model.OutputFormats
 import com.anagorny.gpxanimatorbot.services.ForecastService
 import com.anagorny.gpxanimatorbot.services.GpxProcessor
-import com.anagorny.gpxanimatorbot.services.MainTelegramBotService
 import com.anagorny.gpxanimatorbot.services.RateLimiter
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.slf4j.MDCContext
 import kotlinx.coroutines.withContext
-import mu.KLogging
 import org.apache.commons.io.FilenameUtils
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
@@ -22,10 +21,10 @@ import org.telegram.telegrambots.meta.api.methods.ActionType
 import org.telegram.telegrambots.meta.api.methods.GetFile
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
 import org.telegram.telegrambots.meta.api.objects.Document
-import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.Update
+import org.telegram.telegrambots.meta.api.objects.message.Message
+import org.telegram.telegrambots.meta.generics.TelegramClient
 import java.io.File
 import java.time.Duration
 import java.util.*
@@ -36,7 +35,7 @@ class FileMessageHandler(
     private val gpxAnimatorAppProperties: GpxAnimatorAppProperties,
     private val systemProperties: SystemProperties,
     private val rateLimiter: RateLimiter,
-    private val botService: MainTelegramBotService,
+    private val telegramClient: TelegramClient,
     @Qualifier("mainFlowCoroutineScope")
     private val scope: CoroutineScope,
     private val gpxProcessor: GpxProcessor,
@@ -54,34 +53,28 @@ class FileMessageHandler(
             var outFile: File? = null
 
             try {
-                botService.sentAction(message.chatId, ActionType.TYPING)
-                file = botService.downloadFile(botService.execute(GetFile(document.fileId)))
+                telegramClient.sentAction(message.chatId, ActionType.TYPING)
+                file = telegramClient.downloadFile(
+                    telegramClient.execute(GetFile.builder().fileId(document.fileId).build())
+                )
 
                 val messageWithForecast = doForecast(file, message).orElse(null)
 
                 val combinedResult = gpxProcessor.doProcess(file)
                 outFile = combinedResult.second
 
-                botService.sentAction(message.chatId, ActionType.UPLOADVIDEO)
-                botService.execute(buildResponse(message, document, combinedResult.first, outFile))
-                deleteMessage(messageWithForecast)
+                telegramClient.sentAction(message.chatId, ActionType.UPLOAD_VIDEO)
+                telegramClient.execute(buildResponse(message, document, combinedResult.first, outFile))
+                if (messageWithForecast != null) {
+                    telegramClient.deleteMessage(messageWithForecast)
+                    logger.info { "Message with id=${messageWithForecast.messageId} was deleted" }
+                }
             } catch (e: Exception) {
                 logger.error(e) { "Error while processing message" }
             } finally {
                 scope.launchAsync(Dispatchers.IO) { removeFileIfExist(file?.absolutePath, MainHandler.logger) }
                 scope.launchAsync(Dispatchers.IO) { removeFileIfExist(outFile?.absolutePath, MainHandler.logger) }
             }
-        }
-    }
-
-    // ToDo create as helper's method
-    private fun deleteMessage(message: Message?) {
-        if (message != null) {
-            botService.execute(DeleteMessage().apply {
-                chatId = message.chatId.toString()
-                messageId = message.messageId
-            })
-            logger.info("Message with id=${message.messageId} was deleted")
         }
     }
 
@@ -92,7 +85,7 @@ class FileMessageHandler(
                 doResponse(
                     "Your request is processing. " +
                             "Your GPX file may takes ${duration.format()} to process." +
-                            " Stay in touch \uD83D\uDE42",
+                            " Stay in touch 🙂",
                     message
                 ).asOptional()
         } else {
@@ -138,15 +131,15 @@ class FileMessageHandler(
         gpxAnalyzeResult: GPXAnalyzeResult?,
         result: File
     ): SendVideo =
-        SendVideo().apply {
-            chatId = message.chatId.toString()
-            replyToMessageId = message.messageId
-            video = loadFile(result, makeOutFilename(document.fileName, gpxAnimatorAppProperties.outputFormat), logger)
-            width = gpxAnimatorAppProperties.outWidth
-            height = gpxAnimatorAppProperties.outHeight
-            caption = makeCaption(gpxAnalyzeResult, FilenameUtils.getBaseName(document.fileName))
-            parseMode = "HTML"
-        }
+        SendVideo.builder()
+            .chatId(message.chatId.toString())
+            .replyToMessageId(message.messageId)
+            .video(loadFile(result, makeOutFilename(document.fileName, gpxAnimatorAppProperties.outputFormat), logger))
+            .width(gpxAnimatorAppProperties.outWidth)
+            .height(gpxAnimatorAppProperties.outHeight)
+            .caption(makeCaption(gpxAnalyzeResult, FilenameUtils.getBaseName(document.fileName)))
+            .parseMode("HTML")
+            .build()
 
 
     private fun makeOutFilename(
@@ -158,13 +151,15 @@ class FileMessageHandler(
     }
 
     private suspend fun doResponse(response: String, userMessage: Message): Message {
-        val message = SendMessage().apply {
-            replyToMessageId = userMessage.messageId
-            chatId = userMessage.chatId.toString()
-            text = response
-        }
-        return botService.execute(message)
+        val message = SendMessage.builder()
+            .replyToMessageId(userMessage.messageId)
+            .chatId(userMessage.chatId.toString())
+            .text(response)
+            .build()
+        return telegramClient.execute(message)
     }
 
-    companion object : KLogging()
+    companion object {
+        val logger = KotlinLogging.logger {}
+    }
 }

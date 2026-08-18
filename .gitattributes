@@ -1,0 +1,7 @@
+# core.autocrlf=true on Windows/WSL checkouts would give these CRLF endings, which
+# breaks them as soon as they run inside the Linux container (`\r: not found`).
+*.sh       text eol=lf
+gradlew    text eol=lf
+Dockerfile text eol=lf
+
+*.bat      text eol=crlf

@@ -9,7 +9,7 @@ import com.anagorny.gpxanimatorbot.services.GpxProcessor
 import jakarta.annotation.PostConstruct
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.runBlocking
-import mu.KLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -70,7 +70,9 @@ class ForecastServiceImpl(
         }
     }
 
-    companion object : KLogging()
+    companion object {
+        val logger = KotlinLogging.logger {}
+    }
 }
 
 

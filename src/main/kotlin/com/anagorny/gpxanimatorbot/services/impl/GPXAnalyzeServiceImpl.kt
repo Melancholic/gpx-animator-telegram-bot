@@ -11,7 +11,7 @@ import io.jenetics.jpx.*
 import io.jenetics.jpx.format.Location
 import io.jenetics.jpx.format.LocationFormatter
 import io.jenetics.jpx.geom.Geoid
-import mu.KLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 import java.io.File
 import java.time.Duration
@@ -198,13 +198,14 @@ class GPXAnalyzeServiceImpl(
     private fun getCity(wayPoint: WayPoint?): String = try {
         val geoJson = geocoderClient.reverse(wayPoint!!.longitude.toDegrees(), wayPoint.latitude.toDegrees())
 
-        val properties = geoJson.features.last().properties as Map<String, Any?>
-        val city = properties["city"] as String?
+        val city = geoJson.features.last().properties["city"] as String?
         city ?: LocationFormatter.ISO_HUMAN_LONG.format(Location.of(wayPoint))
     } catch (e: Exception) {
         logger.error(e) { "Couldn't get city name from external geocoder" }
         null
     } ?: LocationFormatter.ISO_HUMAN_LONG.format(Location.of(wayPoint))
 
-    companion object : KLogging()
+    companion object {
+        val logger = KotlinLogging.logger {}
+    }
 }
