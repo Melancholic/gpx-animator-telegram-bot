@@ -1,4 +1,4 @@
-FROM bellsoft/liberica-openjre-alpine:25
+FROM bellsoft/liberica-openjre-alpine:26
 
 ARG JAR_FILE
 ARG ENTRY_POINT
