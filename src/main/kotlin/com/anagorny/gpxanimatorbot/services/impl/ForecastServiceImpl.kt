@@ -6,10 +6,10 @@ import com.anagorny.gpxanimatorbot.helpers.measureTime
 import com.anagorny.gpxanimatorbot.services.ForecastService
 import com.anagorny.gpxanimatorbot.services.GPXAnalyzeService
 import com.anagorny.gpxanimatorbot.services.GpxProcessor
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.annotation.PostConstruct
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.runBlocking
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -62,8 +62,10 @@ class ForecastServiceImpl(
         return if (isInitialized()) {
             val gpx = gpxAnalyzeService.readGPX(gpxFile)
             val pointsCount = gpxAnalyzeService.getAllPointsAsStream(gpx).count()
-            val forecastDuration =
-                Duration.ofMillis(((pointsCount / refPointsCount!! * 1.0) * refDuration.toMillis()).roundToLong())
+            // toDouble() before dividing: both counts are Long, so the ratio used to be
+            // truncated to 0 for every file smaller than the reference GPX.
+            val ratio = pointsCount.toDouble() / refPointsCount!!
+            val forecastDuration = Duration.ofMillis((ratio * refDuration.toMillis()).roundToLong())
             Optional.of(forecastDuration)
         } else {
             Optional.empty()

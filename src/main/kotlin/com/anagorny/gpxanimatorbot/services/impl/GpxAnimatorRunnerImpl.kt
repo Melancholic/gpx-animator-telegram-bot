@@ -6,20 +6,22 @@ import com.anagorny.gpxanimatorbot.helpers.measureTimeMillis
 import com.anagorny.gpxanimatorbot.helpers.runAsync
 import com.anagorny.gpxanimatorbot.services.GpxAnimatorRunner
 import com.anagorny.gpxanimatorbot.utils.StreamGobbler
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.annotation.PostConstruct
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.commons.lang3.time.DurationFormatUtils.formatDurationHMS
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
 import java.io.File
+import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import kotlin.io.path.exists
 
 
 @Service
@@ -32,6 +34,14 @@ class GpxAnimatorRunnerImpl(
     private val tag = "GRP-ANIMATOR-APP"
     private val locker = ReentrantLock()
 
+    // Resolved from the running JVM rather than taken from PATH: an IDE launches the app
+    // with an absolute path to the JDK and never puts it on PATH, so a bare "java" fails
+    // with error=2 there while working fine in the container.
+    private val javaBin = sequenceOf("java", "java.exe")
+        .map { Path.of(System.getProperty("java.home"), "bin", it) }
+        .firstOrNull { it.exists() }
+        ?.toString() ?: "java"
+
     @PostConstruct
     fun postConstruct() {
         logger.info { "GpxAnimatorRunner is initializing..." }
@@ -43,7 +53,7 @@ class GpxAnimatorRunnerImpl(
     override suspend fun run(inFilePath: String, outFilePath: String): File = locker.withLock {
         val process = ProcessBuilder()
             .command(
-                "java", "-jar", gpxAnimatorAppProperties.path,
+                javaBin, "-jar", gpxAnimatorAppProperties.path,
                 "--input", inFilePath,
                 "--output", outFilePath,
                 "--tms-url-template", "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={zoom}",
@@ -103,7 +113,7 @@ class GpxAnimatorRunnerImpl(
     }
 
     override fun runTest() = locker.withLock {
-        val process = Runtime.getRuntime().exec(arrayOf("java", "-jar", gpxAnimatorAppProperties.path, "--version"))
+        val process = Runtime.getRuntime().exec(arrayOf(javaBin, "-jar", gpxAnimatorAppProperties.path, "--version"))
         pipeIOtoLogger(process)
         val res = process.waitFor()
         if (res == 0) {
