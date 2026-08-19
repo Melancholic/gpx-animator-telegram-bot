@@ -57,10 +57,17 @@ class MainTelegramBotService(
         super.consume(updates)
     }
 
+    // consume() routes every update that isn't a command here, including the ones carrying
+    // no message at all (edited_message, my_chat_member, message_reaction, ...) - those have
+    // nothing to handle and no id to correlate on.
     override fun processNonCommandUpdate(update: Update) {
+        val message = update.message ?: run {
+            logger.debug { "Ignoring update ${update.updateId} that carries no message" }
+            return
+        }
         scope.launchAsync {
             val job = launch {
-                MDC.put("correlationId", "${update.message.chatId}-${update.message.messageId}")
+                MDC.put("correlationId", "${message.chatId}-${message.messageId}")
                 mainHandler.handle(update)
             }
             job.invokeOnCompletion { MDC.clear() }

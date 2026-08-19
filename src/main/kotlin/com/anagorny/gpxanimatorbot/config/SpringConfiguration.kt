@@ -1,6 +1,8 @@
 package com.anagorny.gpxanimatorbot.config
 
 import com.anagorny.gpxanimatorbot.helpers.coroutineScope
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.plus
@@ -40,8 +42,18 @@ class SpringConfiguration(
     fun mainFlowCoroutineScope(): CoroutineScope = coroutineScope(
         properties.executor.coreSize,
         properties.executor.maxSize
-    ) + MDCContext()
+    ) + MDCContext() + SupervisorJob() + mainFlowExceptionHandler()
 
     @Bean
     fun loggingProcessCoroutineScope(): CoroutineScope = coroutineScope(3) + MDCContext() + SupervisorJob()
+
+    // Without this the exception reaches the thread's default handler and bypasses logback,
+    // losing the correlation id along with it.
+    private fun mainFlowExceptionHandler() = CoroutineExceptionHandler { _, e ->
+        logger.error(e) { "Unhandled exception in main flow coroutine" }
+    }
+
+    companion object {
+        val logger = KotlinLogging.logger {}
+    }
 }
