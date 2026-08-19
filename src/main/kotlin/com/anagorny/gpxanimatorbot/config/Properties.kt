@@ -45,8 +45,8 @@ data class RetryerProperties(
 @ConfigurationProperties(prefix = "external.geocoder")
 data class GeocoderProperties(
     val url: String,
-    val connectTimeout: Duration = Duration.ofMillis(100),
-    val readTimeout: Duration = Duration.ofMillis(500)
+    val connectTimeout: Duration = Duration.ofSeconds(1),
+    val readTimeout: Duration = Duration.ofSeconds(2)
 )
 
 data class RateLimiterProperties(
