@@ -33,3 +33,4 @@ build/
 .kotlin/
 
 !gradle/wrapper/gradle-wrapper.jar
+/deploy/ghcr/credentials.env
