@@ -5,7 +5,7 @@ buildscript {
         kotlin_version = "2.4.10"
         corutines_version = "1.11.0"
         spring_boot_version = "4.1.0"
-        telegrambots_version = "10.2.0"
+        telegrambots_version = "10.2.1"
     }
     repositories {
         mavenCentral()
